@@ -17,7 +17,7 @@ import {
 } from "@/server/allanime";
 import { getWatchProgress } from "@/server/stream";
 import { useFavorites, useMoviesList } from "@/hooks/useMovies";
-import useCurrentUser from "@/hooks/useCurrentUser";
+import useFavoriteIds from "@/lib/favorites";
 import useInfoModal from "@/hooks/useInfoModal";
 import useConnectivity from "@/lib/connectivity";
 import SpotlightCarousel from "@/components/SpotlightCarousel";
@@ -298,8 +298,8 @@ export default function Home() {
   }, [reloadKey]);
 
   // favorites saved from the full catalog (ids prefixed "al:")
-  const { data: user } = useCurrentUser();
-  const favIdsKey = (user?.favoriteIds ?? [])
+  const favoriteIds = useFavoriteIds((s) => s.ids);
+  const favIdsKey = favoriteIds
     .filter((f) => f.startsWith("al:"))
     .map((f) => f.slice(3))
     .join(",");

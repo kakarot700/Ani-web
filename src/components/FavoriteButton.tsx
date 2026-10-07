@@ -1,42 +1,40 @@
-import React, { useCallback, useMemo } from "react";
-import useCurrentUser from "@/hooks/useCurrentUser";
+import React, { useCallback } from "react";
 import { AiOutlinePlus, AiOutlineCheck } from "react-icons/ai";
+import useFavoriteIds from "@/lib/favorites";
+import useToasts from "@/lib/toast";
 
 interface FavoriteButtonProps {
   movieId: string;
 }
 
 const FavoriteButton: React.FC<FavoriteButtonProps> = ({ movieId }) => {
-  const { data: currentUser, mutate } = useCurrentUser();
+  const ids = useFavoriteIds((s) => s.ids);
+  const toggle = useFavoriteIds((s) => s.toggle);
+  const push = useToasts((s) => s.push);
 
-  const isFavorite = useMemo(() => {
-    const list = currentUser?.favoriteIds || [];
-    return list.includes(movieId);
-  }, [currentUser, movieId]);
+  const isFavorite = ids.includes(movieId);
 
-  const toggleFavorite = useCallback(() => {
-    if (!currentUser) {
-      return;
-    }
-    const updatedFavoriteIds = isFavorite
-      ? currentUser.favoriteIds.filter((id) => id !== movieId)
-      : [...currentUser.favoriteIds, movieId];
-
-    mutate({
-      ...currentUser,
-      favoriteIds: updatedFavoriteIds,
-    });
-  }, [movieId, isFavorite, currentUser, mutate]);
+  const onToggle = useCallback(() => {
+    toggle(movieId);
+    push(
+      isFavorite ? "Removed from Favorites" : "Added to Favorites",
+      isFavorite ? "info" : "success"
+    );
+  }, [movieId, isFavorite, toggle, push]);
 
   const Icon = isFavorite ? AiOutlineCheck : AiOutlinePlus;
 
   return (
-    <div
-      onClick={toggleFavorite}
-      className="cursor-pointer group/item w-6 h-6 lg:w-10 lg:h-10 border-white border-2 rounded-full flex justify-center items-center transition hover:border-neutral-300"
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={isFavorite}
+      aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+      title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+      className="group/item flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-white transition hover:border-neutral-300 lg:h-10 lg:w-10"
     >
       <Icon className="text-white" size={25} />
-    </div>
+    </button>
   );
 };
 

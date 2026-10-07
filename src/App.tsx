@@ -1,11 +1,10 @@
-import { Component, useEffect, useState, type ReactElement, type ReactNode } from "react";
-import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Component, useEffect, useState, type ReactNode } from "react";
+import { HashRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ShortcutsModal from "@/components/ShortcutsModal";
 import CommandPalette from "@/components/CommandPalette";
 import ScrollProgressBar from "@/components/ScrollProgressBar";
 import { searchShows } from "@/server/allanime";
 import useApiHealth from "@/server/health";
-import useCurrentUser from "@/hooks/useCurrentUser";
 import usePalette from "@/lib/palette";
 
 const SurpriseRoute = () => {
@@ -61,14 +60,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-const Protected = ({ children }: { children: ReactElement }) => {
-  const { data: user } = useCurrentUser();
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-  return children;
-};
-
 const titleFor = (p: string) => {
   if (p === "/") return "Otaku — Stream Anime";
   if (p.startsWith("/browse")) return "Browse Anime — Otaku";
@@ -78,8 +69,6 @@ const titleFor = (p: string) => {
   if (p.startsWith("/mylist")) return "My List — Otaku";
   if (p.startsWith("/stats")) return "Stats — Otaku";
   if (p.startsWith("/history")) return "History — Otaku";
-  if (p.startsWith("/auth")) return "Sign in — Otaku";
-  if (p.startsWith("/profiles")) return "Profiles — Otaku";
   if (p.startsWith("/surprise")) return "Surprise — Otaku";
   return "Otaku";
 };
@@ -95,95 +84,16 @@ const AnimatedRoutes = () => {
   return (
     <div id="main" key={location.pathname} className="animate-[fadeup_0.45s_ease]">
       <Routes location={location}>
-        <Route path="/auth" element={<AuthLazy />} />
-        <Route
-          path="/profiles"
-          element={
-            <Protected>
-              <ProfilesLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <Protected>
-              <HomeLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/browse"
-          element={
-            <Protected>
-              <BrowseLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/mylist"
-          element={
-            <Protected>
-              <MyListLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/stats"
-          element={
-            <Protected>
-              <StatsLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/history"
-          element={
-            <Protected>
-              <HistoryLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/surprise"
-          element={
-            <Protected>
-              <SurpriseRoute />
-            </Protected>
-          }
-        />
-        <Route
-          path="/seasons"
-          element={
-            <Protected>
-              <SeasonsLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/anime/:id"
-          element={
-            <Protected>
-              <AnimeDetailLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/watch/:id/:ep"
-          element={
-            <Protected>
-              <WatchAnimeLazy />
-            </Protected>
-          }
-        />
-        <Route
-          path="/play/:movieId"
-          element={
-            <Protected>
-              <WatchLazy />
-            </Protected>
-          }
-        />
+        <Route path="/" element={<HomeLazy />} />
+        <Route path="/browse" element={<BrowseLazy />} />
+        <Route path="/seasons" element={<SeasonsLazy />} />
+        <Route path="/mylist" element={<MyListLazy />} />
+        <Route path="/stats" element={<StatsLazy />} />
+        <Route path="/history" element={<HistoryLazy />} />
+        <Route path="/surprise" element={<SurpriseRoute />} />
+        <Route path="/anime/:id" element={<AnimeDetailLazy />} />
+        <Route path="/watch/:id/:ep" element={<WatchAnimeLazy />} />
+        <Route path="/play/:movieId" element={<WatchLazy />} />
         <Route path="*" element={<NotFoundLazy />} />
       </Routes>
     </div>
@@ -224,8 +134,6 @@ const HealthBootstrap = () => {
 
 import BackToTop from "@/components/BackToTop";
 import Toaster from "@/components/Toaster";
-import AuthLazy from "@/pages/Auth";
-import ProfilesLazy from "@/pages/Profiles";
 import HomeLazy from "@/pages/Home";
 import BrowseLazy from "@/pages/Browse";
 import MyListLazy from "@/pages/MyListPage";

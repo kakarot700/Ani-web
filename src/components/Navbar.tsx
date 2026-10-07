@@ -1,9 +1,7 @@
-import { BsBell, BsChevronDown, BsSearch, BsShuffle } from "react-icons/bs";
+import { BsBell, BsBookmarkHeartFill, BsChevronDown, BsSearch, BsShuffle } from "react-icons/bs";
 import MobileMenu from "./MobileMenu";
 import usePalette from "@/lib/palette";
 import { useCallback, useEffect, useRef, useState } from "react";
-import AccountMenu from "./AccountMenu";
-import ProfileAvatar from "./ProfileAvatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { searchShows, type ShowSummary } from "@/server/allanime";
 
@@ -23,7 +21,6 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showBackground, setShowBackground] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const setPaletteOpen = usePalette((s) => s.setOpen);
@@ -111,9 +108,8 @@ const Navbar = () => {
   }, []);
 
   const toggleMobileMenu = useCallback(() => setShowMobileMenu((c) => !c), []);
-  const toggleAccountMenu = useCallback(() => setShowAccountMenu((c) => !c), []);
 
-  const anyMenuOpen = showMobileMenu || showAccountMenu || showNotifs;
+  const anyMenuOpen = showMobileMenu || showNotifs;
   const navHidden = hidden && !anyMenuOpen;
 
   return (
@@ -259,18 +255,14 @@ const Navbar = () => {
             <span className="hidden lg:inline">Random</span>
           </button>
 
-          <div
-            onClick={toggleAccountMenu}
-            className="relative flex cursor-pointer flex-row items-center gap-2"
+          <Link
+            to="/mylist"
+            title="My List"
+            aria-label="My List"
+            className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-300 transition hover:bg-zinc-800/70 hover:text-white"
           >
-            <div className="h-6 w-6 overflow-hidden rounded-md lg:h-10 lg:w-10">
-              <ProfileAvatar />
-            </div>
-            <BsChevronDown
-              className={`text-white transition ${showAccountMenu ? "rotate-180" : "rotate-0"}`}
-            />
-            <AccountMenu visable={showAccountMenu} />
-          </div>
+            <BsBookmarkHeartFill size={16} />
+          </Link>
         </div>
       </div>
     </nav>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { getMovie, getRandomMovie, movies, type Movie } from "@/lib/movies";
-import useCurrentUser from "./useCurrentUser";
+import useFavoriteIds from "@/lib/favorites";
 
 export const useMoviesList = () => ({
   data: movies,
@@ -20,15 +20,10 @@ export const useBillboard = () => {
 };
 
 export const useFavorites = () => {
-  const { data: user } = useCurrentUser();
+  const ids = useFavoriteIds((s) => s.ids);
   const data = useMemo(
-    () =>
-      user
-        ? movies.filter((movie) =>
-            (user.favoriteIds ?? []).includes(movie.id)
-          )
-        : [],
-    [user]
+    () => movies.filter((movie) => ids.includes(movie.id)),
+    [ids]
   );
   return { data, error: null, isLoading: false };
 };

@@ -3,7 +3,6 @@ import { BsFillStarFill, BsHandThumbsUp, BsHandThumbsUpFill } from "react-icons/
 import SectionHeader from "./SectionHeader";
 import useToasts from "@/lib/toast";
 import useReviews, { sortReviews, type ReviewSort } from "@/lib/reviews";
-import useCurrentUser from "@/hooks/useCurrentUser";
 
 interface ReviewsSectionProps {
   animeId: string;
@@ -18,7 +17,6 @@ const SORTS: { id: ReviewSort; label: string }[] = [
 
 const ReviewsSection: React.FC<ReviewsSectionProps> = ({ animeId, title }) => {
   const push = useToasts((s) => s.push);
-  const { data: user } = useCurrentUser();
   const seed = useReviews((s) => s.seed);
   const list = useReviews((s) => s.list);
   const add = useReviews((s) => s.add);
@@ -47,7 +45,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({ animeId, title }) => {
       return;
     }
     add(animeId, {
-      user: user?.name ?? "You",
+      user: "You",
       stars,
       text: t,
     });
