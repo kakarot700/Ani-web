@@ -89,10 +89,15 @@ const AUTONEXT_KEY = "otaku-autonext";
 
 export function getPreferredServer(): string {
   try {
-    return localStorage.getItem(SERVER_KEY) ?? "megaplay";
+    const saved = localStorage.getItem(SERVER_KEY);
+    // A stored id can outlive the server it names (hosts get retired), so
+    // only honour it while it is still in the registry — otherwise the
+    // picker would highlight nothing.
+    if (saved && STREAM_SERVERS.some((s) => s.id === saved)) return saved;
   } catch {
-    return "megaplay";
+    /* ignore */
   }
+  return STREAM_SERVERS[0].id;
 }
 
 export function savePreferredServer(id: string): void {
