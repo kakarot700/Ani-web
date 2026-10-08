@@ -191,7 +191,7 @@ export default function AnimeDetail() {
                 {show.type ?? "Series"}
                 {show.season?.year ? ` · ${show.season.year}` : ""}
               </p>
-              <h1 className="mt-1.5 text-[28px] font-semibold leading-[1.08] tracking-[-0.035em] text-[var(--ink)] md:text-[36px]">
+              <h1 className="mt-1.5 break-words text-[28px] font-semibold leading-[1.08] tracking-[-0.035em] text-[var(--ink)] md:text-[36px]">
                 {show.name}
               </h1>
               {(show.englishName || show.nativeName) && (
@@ -213,7 +213,7 @@ export default function AnimeDetail() {
 
               {show.description && (
                 <p
-                  className={`mt-4 text-[13.5px] leading-relaxed text-[var(--ink-soft)] ${
+                  className={`mt-4 break-words text-[13.5px] leading-relaxed text-[var(--ink-soft)] ${
                     showAllSynopsis ? "" : "line-clamp-3"
                   }`}
                 >
@@ -268,7 +268,7 @@ export default function AnimeDetail() {
 
         {/* ── body ─────────────────────────────────────────── */}
         <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5">
             {/* episodes */}
             <Card
               title="Episodes"
@@ -373,7 +373,7 @@ export default function AnimeDetail() {
           </div>
 
           {/* ── right column ───────────────────────────────── */}
-          <aside className="space-y-5">
+          <aside className="min-w-0 space-y-5">
             <Card
               title="Your list"
               meta="Saved on this device"
