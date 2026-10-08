@@ -180,18 +180,32 @@ export interface ServerHealth {
   ok: boolean;
 }
 
-// A host's reachability doesn't change from episode to episode, so healthy
-// results are reused for a minute: with a dozen servers in the list that keeps
-// skipping through episodes from firing a dozen probes every time.
-const PROBE_TTL = 60_000;
+// A host's reachability doesn't change from episode to episode, so results are
+// reused for a short window: with ten servers wired up that stops every episode
+// skip from firing ten fresh probes. Failures are remembered for less time than
+// successes, so a recovered host is picked up again quickly.
+const PROBE_TTL_OK = 60_000;
+const PROBE_TTL_FAIL = 25_000;
 const PROBE_CACHE_MAX = 240;
-const probeCache = new Map<string, { at: number; health: ServerHealth }>();
+
+interface ProbeEntry {
+  at: number;
+  ttl: number;
+  health: ServerHealth;
+}
+
+const probeCache = new Map<string, ProbeEntry>();
 
 function cacheProbe(key: string, health: ServerHealth): void {
-  if (health.ok) probeCache.set(key, { at: Date.now(), health });
-  if (probeCache.size > PROBE_CACHE_MAX) {
+  probeCache.set(key, {
+    at: Date.now(),
+    ttl: health.ok ? PROBE_TTL_OK : PROBE_TTL_FAIL,
+    health,
+  });
+  while (probeCache.size > PROBE_CACHE_MAX) {
     const oldest = probeCache.keys().next().value;
-    if (oldest !== undefined) probeCache.delete(oldest);
+    if (oldest === undefined) break;
+    probeCache.delete(oldest);
   }
 }
 
@@ -209,12 +223,12 @@ export function pingServer(
 ): Promise<ServerHealth> {
   const cacheKey = `${server.id}:${ids.malId ?? "-"}:${ids.aniListId ?? "-"}:${lang}`;
   const hit = probeCache.get(cacheKey);
-  if (hit && Date.now() - hit.at < PROBE_TTL) return Promise.resolve(hit.health);
+  if (hit && Date.now() - hit.at < hit.ttl) return Promise.resolve(hit.health);
 
   const url = server.build(ids, ep, lang);
   if (!url) {
+    // this server can't be built from the ids we have — there is nothing to probe
     const miss: ServerHealth = { id: server.id, latency: null, ok: false };
-    // no id to build with — don't keep re-checking it for this title
     cacheProbe(cacheKey, miss);
     return Promise.resolve(miss);
   }
@@ -232,7 +246,11 @@ export function pingServer(
       cacheProbe(cacheKey, health);
       return health;
     })
-    .catch(() => ({ id: server.id, latency: null, ok: false }))
+    .catch(() => {
+      const health: ServerHealth = { id: server.id, latency: null, ok: false };
+      cacheProbe(cacheKey, health);
+      return health;
+    })
     .finally(() => window.clearTimeout(timer));
 }
 
