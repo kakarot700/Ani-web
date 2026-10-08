@@ -1,8 +1,14 @@
 // ─────────────────────────────────────────────────────────────
 //  Otaku "anime server" — streaming layer
-//  15 embed player servers across independent providers, keyed
-//  by external IDs. Every entry verified against the provider's
-//  own docs. MAL-keyed servers listed first, then AniList-keyed.
+//  Embed player servers across independent providers, keyed by
+//  external IDs (MAL-keyed first, then AniList-keyed).
+//  Re-verified live 2026-10-08 against each provider's own docs:
+//    megaplay.buzz · megavid.buzz · ani.megaplay.su · vidhawk.buzz
+//    tryembed.us.cc · babastream.top · aniembed.se · vidnest.fun
+//    vidy.st · anixo.buzz
+//  REMOVED 2026-10-08: zokoanime.video (both routes) — the service
+//  is down and 404s every embed route (see ani-cli issue #1954).
+//  These providers churn constantly; re-verify before trusting one.
 // ─────────────────────────────────────────────────────────────
 
 export type StreamLang = "sub" | "dub";
@@ -37,19 +43,19 @@ export const STREAM_SERVERS: StreamServer[] = [
   },
   {
     id: "megaplay-mirror",
-    label: "MegaPlay Mirror",
+    label: "MegaVid Mirror",
     langs: ["sub", "dub"],
     signals: true,
     build: ({ malId }, ep, lang) =>
       malId ? `https://ani.megaplay.su/mal/${malId}/${ep}/${lang}` : null,
   },
   {
-    id: "zoko",
-    label: "Zokoanime",
+    id: "anixo",
+    label: "Anixo",
     langs: ["sub", "dub"],
     signals: true,
     build: ({ malId }, ep, lang) =>
-      malId ? `https://zokoanime.video/stream/mal/${malId}/${ep}/${lang}?autoplay=0` : null,
+      malId ? `https://anixo.buzz/embed/mal/${malId}/${ep}?track=${lang}` : null,
   },
   {
     id: "vidhawk",
@@ -96,16 +102,6 @@ export const STREAM_SERVERS: StreamServer[] = [
       aniListId ? `https://megavid.buzz/ani/${aniListId}/${ep}/${lang}` : null,
   },
   {
-    id: "zoko-ani",
-    label: "Zoko AniList",
-    langs: ["sub", "dub"],
-    signals: true,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId
-        ? `https://zokoanime.video/stream/anilist/${aniListId}/${ep}/${lang}?autoplay=0`
-        : null,
-  },
-  {
     id: "vidhawk-ani",
     label: "VidHawk Zuri",
     langs: ["sub", "dub"],
@@ -140,6 +136,22 @@ export const STREAM_SERVERS: StreamServer[] = [
     signals: false,
     build: ({ aniListId }, ep, lang) =>
       aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidnest-pahe",
+    label: "VidNest Pahe",
+    langs: ["sub", "dub"],
+    signals: false,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://vidnest.fun/animepahe/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "anixo-ani",
+    label: "Anixo AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://anixo.buzz/embed/ani/${aniListId}/${ep}?track=${lang}` : null,
   },
   {
     id: "vidy",

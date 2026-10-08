@@ -208,7 +208,13 @@ export default function WatchAnime() {
       // Ignore stale signals racing in from the iframe we just swapped out
       if (Date.now() - lastSwitchRef.current < 900) return;
       const current = liveRef.current.autoPick;
-      if (current) attemptedRef.current.add(current);
+      if (current) {
+        attemptedRef.current.add(current);
+        // Demote it in the ranked list too — the picker shows it red
+        // and future picks skip it for the rest of this episode.
+        const failed = healthRef.current.find((h) => h.id === current);
+        if (failed) failed.ok = false;
+      }
       const candidates = healthRef.current.filter((h) => h.ok);
       const nextPick = candidates.find((c) => !attemptedRef.current.has(c.id));
       if (!nextPick) {
@@ -315,11 +321,14 @@ export default function WatchAnime() {
       if (!data || typeof data !== "object") return;
 
       const inner = data.type === "PLAYER_EVENT" && data.data ? data.data : data;
-      const isEnded =
-        (typeof inner.event === "string" && ENDED_EVENTS.has(inner.event)) ||
-        (typeof inner.type === "string" && ENDED_EVENTS.has(inner.type)) ||
-        (inner.event === "player" && typeof inner.player === "string" && ENDED_EVENTS.has(inner.player));
-      const isError = inner.event === "error" || inner.type === "error" || inner.event === "play_error";
+      // The event name can arrive as event/type/player, and some providers
+      // namespace it — e.g. Anixo posts { type: "aniembed:ended" }.
+      const evName = [inner.event, inner.type, inner.player].find(
+        (v) => typeof v === "string"
+      ) as string | undefined;
+      const ev = evName ?? "";
+      const isEnded = ENDED_EVENTS.has(ev) || /:(ended|complete|end)$/.test(ev);
+      const isError = ev === "error" || ev === "play_error" || ev.endsWith(":error");
 
       gotSignalRef.current = true; // the player is alive
 
