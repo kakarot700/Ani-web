@@ -454,10 +454,10 @@ export default function WatchAnime() {
         </div>
 
         <div className="flex items-center gap-2">
-          {show && (
+          {show && show.episodes.sub.length > 0 && show.episodes.dub.length > 0 && (
             <Segmented
               size="sm"
-              className="hidden sm:inline-flex"
+              className="shrink-0"
               label="Audio"
               segments={[
                 { id: "sub" as const, label: "Sub" },
