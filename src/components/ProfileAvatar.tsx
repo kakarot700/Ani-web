@@ -1,3 +1,7 @@
+// Profile avatar — drawn in the app's own brand palette so it sits
+// natively on the frosted chrome: dark-navy base (#232A44) with the
+// signature periwinkle → peach gradient (#7C8CF8 → #E8B99A) used by
+// the favicon and the aurora backdrop, plus a soft glow for depth.
 const ProfileAvatar = () => {
   return (
     <svg
@@ -9,27 +13,38 @@ const ProfileAvatar = () => {
     >
       <defs>
         <linearGradient id="otaku-av" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7f1d1d" />
-          <stop offset="55%" stopColor="#3f3f46" />
-          <stop offset="100%" stopColor="#18181b" />
+          <stop offset="0%" stopColor="#8E9BFF" />
+          <stop offset="55%" stopColor="#7C8CF8" />
+          <stop offset="100%" stopColor="#E8B99A" />
         </linearGradient>
+        <radialGradient id="otaku-av-glow" cx="50%" cy="30%" r="65%">
+          <stop offset="0%" stopColor="#7C8CF8" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#7C8CF8" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      <rect width="64" height="64" fill="url(#otaku-av)" />
-      {/* stylized anime silhouette */}
+
+      {/* base + glow */}
+      <rect width="64" height="64" fill="#232A44" />
+      <rect width="64" height="64" fill="url(#otaku-av-glow)" />
+
+      {/* shoulders + head silhouette, in the brand gradient */}
       <path
-        d="M32 12c-9 0-15 6.5-15 15 0 3 .8 5.6 2.2 7.8L17 46c3 3.4 8.4 6 15 6s12-2.6 15-6l-2.2-11.2C46.2 32.6 47 30 47 27c0-8.5-6-15-15-15z"
-        fill="#09090b"
-        opacity="0.55"
+        d="M8 64c0-12 10.7-20 24-20s24 8 24 20z"
+        fill="url(#otaku-av)"
+        opacity="0.9"
       />
-      <circle cx="32" cy="27" r="10.5" fill="#09090b" opacity="0.85" />
-      <path d="M18 54c2.8-7.5 8-11.5 14-11.5S43.2 46.5 46 54" fill="#09090b" opacity="0.85" />
-      {/* eyes */}
-      <rect x="25.5" y="25" width="4.5" height="2" rx="1" fill="#f4f4f5" opacity="0.9" />
-      <rect x="34" y="25" width="4.5" height="2" rx="1" fill="#f4f4f5" opacity="0.9" />
-      {/* headband slash */}
-      <rect x="16" y="18.5" width="32" height="4" rx="2" fill="#dc2626" opacity="0.9" />
-      <rect x="28" y="17.5" width="8" height="6" rx="1.5" fill="#a1a1aa" />
-      <path d="M30 20.5l4-1M30 19l4 3" stroke="#3f3f46" strokeWidth="0.8" strokeLinecap="round" />
+      <circle cx="32" cy="30" r="15" fill="url(#otaku-av)" />
+
+      {/* frosted face plate */}
+      <ellipse cx="32" cy="31" rx="10.5" ry="11.5" fill="#232A44" opacity="0.82" />
+
+      {/* headband + plate */}
+      <rect x="17" y="20" width="30" height="4.5" rx="2.2" fill="url(#otaku-av)" />
+      <rect x="28" y="18.5" width="8" height="7" rx="2" fill="#E8B99A" opacity="0.95" />
+
+      {/* glowing eyes */}
+      <rect x="25.5" y="30" width="5" height="2.4" rx="1.2" fill="#E8B99A" />
+      <rect x="33.5" y="30" width="5" height="2.4" rx="1.2" fill="#E8B99A" />
     </svg>
   );
 };
