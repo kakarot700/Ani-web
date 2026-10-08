@@ -12,10 +12,10 @@ const AZIndex: React.FC<AZIndexProps> = ({ active, onSelect }) => {
     <div className="no-scrollbar flex gap-1 overflow-x-auto pb-1">
       <button
         onClick={() => onSelect("")}
-        className={`shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-bold transition ${
+        className={`press shrink-0 rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold transition ${
           active === ""
-            ? "bg-red-600 text-white"
-            : "bg-zinc-900 text-zinc-400 ring-1 ring-zinc-800 hover:text-white"
+            ? "bg-white text-[var(--ink)]"
+            : "glass text-white/70 hover:text-white"
         }`}
       >
         All
@@ -24,10 +24,8 @@ const AZIndex: React.FC<AZIndexProps> = ({ active, onSelect }) => {
         <button
           key={l}
           onClick={() => onSelect(active === l ? "" : l)}
-          className={`shrink-0 rounded-md px-2.5 py-1.5 font-mono text-[11px] font-bold transition ${
-            active === l
-              ? "bg-red-600 text-white shadow-[0_0_14px_rgba(220,38,38,0.4)]"
-              : "bg-zinc-900 text-zinc-500 ring-1 ring-zinc-800 hover:text-white"
+          className={`press tnum shrink-0 rounded-full px-3 py-1.5 text-[11.5px] font-semibold transition ${
+            active === l ? "bg-white text-[var(--ink)]" : "glass text-white/60 hover:text-white"
           }`}
         >
           {l}

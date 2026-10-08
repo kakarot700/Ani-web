@@ -7,26 +7,17 @@ interface FavoriteButtonProps {
 }
 
 const FavoriteButton: React.FC<FavoriteButtonProps> = ({ movieId }) => {
-  const { data: currentUser, mutate } = useCurrentUser();
+  const { data: currentUser, setFavorites } = useCurrentUser();
 
-  const isFavorite = useMemo(() => {
-    const list = currentUser?.favoriteIds || [];
-    return list.includes(movieId);
-  }, [currentUser, movieId]);
+  const isFavorite = useMemo(
+    () => (currentUser.favoriteIds ?? []).includes(movieId),
+    [currentUser, movieId]
+  );
 
   const toggleFavorite = useCallback(() => {
-    if (!currentUser) {
-      return;
-    }
-    const updatedFavoriteIds = isFavorite
-      ? currentUser.favoriteIds.filter((id) => id !== movieId)
-      : [...currentUser.favoriteIds, movieId];
-
-    mutate({
-      ...currentUser,
-      favoriteIds: updatedFavoriteIds,
-    });
-  }, [movieId, isFavorite, currentUser, mutate]);
+    const list = currentUser.favoriteIds ?? [];
+    setFavorites(isFavorite ? list.filter((id) => id !== movieId) : [...list, movieId]);
+  }, [movieId, isFavorite, currentUser, setFavorites]);
 
   const Icon = isFavorite ? AiOutlineCheck : AiOutlinePlus;
 

@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BsClockHistory, BsFillPlayFill, BsTrashFill } from "react-icons/bs";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Reveal from "@/components/Reveal";
+import { BsClockHistory, BsFillPlayFill, BsTrash } from "react-icons/bs";
+import PageShell from "@/components/PageShell";
+import { BlackPill, Card, EmptyState, GhostPill, IconBadge } from "@/components/ui";
 import useToasts from "@/lib/toast";
 import { getWatchProgress, type WatchProgress } from "@/server/stream";
 
@@ -14,8 +13,17 @@ const timeAgo = (ts: number) => {
   if (min < 60) return `${min}m ago`;
   const hr = Math.floor(min / 60);
   if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  return `${day}d ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+};
+
+const dayLabel = (ts: number) => {
+  const d = new Date(ts);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 };
 
 export default function HistoryPage() {
@@ -32,101 +40,120 @@ export default function HistoryPage() {
     push("Watch history cleared", "info");
   };
 
-  const totalEps = useMemo(() => items.length, [items]);
+  const groups = useMemo(() => {
+    const map = new Map<string, WatchProgress[]>();
+    for (const item of items) {
+      const key = dayLabel(item.updatedAt);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return [...map.entries()];
+  }, [items]);
 
   return (
-    <>
-      <div className="noise-overlay" aria-hidden="true" />
-      <Navbar />
-      <div className="mx-auto max-w-[1100px] px-4 pb-24 pt-28 md:px-12">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <p className="mb-1 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.25em] text-red-500">
-              <BsClockHistory size={13} />
-              Keep Watching
-              <span className="font-jp tracking-[0.3em] text-zinc-500">· 履歴</span>
-            </p>
-            <h1 className="font-display text-5xl tracking-wide text-white md:text-7xl">History</h1>
-          </div>
-          {items.length > 0 && (
-            <button
-              onClick={clearAll}
-              className="flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-bold text-zinc-300 ring-1 ring-zinc-700 transition hover:bg-red-600 hover:text-white"
-            >
-              <BsTrashFill size={13} />
-              Clear all ({totalEps})
-            </button>
-          )}
-        </div>
-
-        {items.length === 0 ? (
-          <div className="mt-16 rounded-xl border border-zinc-800 bg-zinc-900/50 p-14 text-center">
-            <p className="font-display text-3xl tracking-wide text-zinc-300">Nothing watched yet</p>
-            <p className="mt-2 text-sm text-zinc-500">
-              Episodes you watch will show up here so you can pick up right where you left off.
-            </p>
-            <Link
-              to="/"
-              className="mt-6 inline-block rounded-md bg-red-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-red-500"
-            >
-              Start watching
+    <PageShell
+      eyebrow="Keep watching"
+      title="History"
+      subtitle="Every episode you've opened, most recent first. Stored in this browser only."
+      width="narrow"
+      action={
+        items.length > 0 ? (
+          <GhostPill onClick={clearAll}>
+            <BsTrash size={11} />
+            Clear all
+          </GhostPill>
+        ) : undefined
+      }
+    >
+      {items.length === 0 ? (
+        <EmptyState
+          title="Nothing watched yet"
+          description="Episodes you open will show up here so you can pick up right where you left off."
+          action={
+            <Link to="/">
+              <BlackPill className="bg-white text-[var(--ink)] hover:bg-white/90">
+                <BsFillPlayFill size={13} />
+                Start watching
+              </BlackPill>
             </Link>
-          </div>
-        ) : (
-          <Reveal className="mt-10 space-y-3">
-            {items.map((p) => (
-              <div
-                key={`${p.id}-${p.ep}-${p.lang}`}
-                className="group flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 transition hover:-translate-y-0.5 hover:border-red-600/60"
-              >
-                <Link
-                  to={`/watch/${p.id}/${p.ep}?lang=${p.lang}`}
-                  className="relative block h-20 w-32 shrink-0 overflow-hidden rounded-lg"
-                >
-                  {p.poster ? (
-                    <img
-                      src={p.poster}
-                      alt={p.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-zinc-800" />
-                  )}
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-                    <BsFillPlayFill size={22} className="text-white" />
-                  </span>
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/anime/${p.id}`}
-                    className="block truncate text-base font-bold text-white transition hover:text-red-500"
-                  >
-                    {p.title}
-                  </Link>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Episode {p.ep} · {p.lang.toUpperCase()}
-                  </p>
-                  <div className="mt-2 h-1 w-40 max-w-full overflow-hidden rounded-full bg-zinc-800">
-                    <div className="h-full w-1/3 rounded-full bg-red-600" />
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="text-[11px] font-semibold text-zinc-500">{timeAgo(p.updatedAt)}</span>
-                  <Link
-                    to={`/watch/${p.id}/${p.ep}?lang=${p.lang}`}
-                    className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-500"
-                  >
-                    <BsFillPlayFill size={12} />
-                    Resume
-                  </Link>
-                </div>
+          }
+        />
+      ) : (
+        <div className="space-y-6">
+          {groups.map(([label, list]) => (
+            <div key={label}>
+              <div className="mb-2.5 flex items-center gap-2 px-1">
+                <span className="label-pill">{label}</span>
+                <span className="text-[11.5px] text-white/40">
+                  {list.length} episode{list.length > 1 ? "s" : ""}
+                </span>
               </div>
-            ))}
-          </Reveal>
-        )}
-      </div>
-      <Footer />
-    </>
+              <Card flush>
+                <div className="px-2 py-2">
+                  {list.map((p) => (
+                    <div
+                      key={`${p.id}-${p.ep}-${p.lang}`}
+                      className="flex items-center gap-3.5 rounded-[18px] px-3 py-2.5 transition hover:bg-black/[0.04]"
+                    >
+                      <Link to={`/anime/${p.id}`} className="shrink-0">
+                        <img
+                          src={p.poster ?? undefined}
+                          alt=""
+                          className="h-[62px] w-[43px] rounded-[12px] object-cover"
+                        />
+                      </Link>
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to={`/anime/${p.id}`}
+                          className="block truncate text-[13.5px] font-semibold tracking-[-0.01em] text-[var(--ink)] transition hover:text-[var(--accent)]"
+                        >
+                          {p.title}
+                        </Link>
+                        <p className="mt-0.5 text-[12px] text-[var(--ink-soft)]">
+                          Episode {p.ep} · {p.lang.toUpperCase()}
+                        </p>
+                        <div className="mt-1.5 h-1 w-32 max-w-full overflow-hidden rounded-full bg-black/[0.07]">
+                          <div className="h-full w-2/5 rounded-full bg-[var(--accent)]" />
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <span className="text-[11px] text-[var(--ink-faint)]">
+                          {timeAgo(p.updatedAt)}
+                        </span>
+                        <Link to={`/watch/${p.id}/${p.ep}?lang=${p.lang}`}>
+                          <BlackPill>
+                            <BsFillPlayFill size={11} />
+                            Resume
+                          </BlackPill>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <Card
+          className="mt-6"
+          title="About your history"
+          meta="Everything here is local to this browser"
+          badge={
+            <IconBadge tone="ink">
+              <BsClockHistory size={13} />
+            </IconBadge>
+          }
+        >
+          <p className="text-[13px] leading-relaxed text-[var(--ink-soft)]">
+            Otaku keeps no account and no server-side profile. Your history, list, ratings and
+            achievements live in this browser's local storage — clearing site data will remove
+            them.
+          </p>
+        </Card>
+      )}
+    </PageShell>
   );
 }

@@ -1,42 +1,56 @@
+import { Link } from "react-router-dom";
+import { BsBookmarkHeartFill, BsClockHistory, BsGraphUpArrow } from "react-icons/bs";
 import useCurrentUser from "@/hooks/useCurrentUser";
-import { useNavigate } from "react-router-dom";
 import ProfileAvatar from "./ProfileAvatar";
 
 interface AccountMenuProps {
   visable?: boolean;
 }
 
+const LINKS = [
+  { to: "/mylist", label: "My List", icon: <BsBookmarkHeartFill size={13} /> },
+  { to: "/history", label: "Watch history", icon: <BsClockHistory size={13} /> },
+  { to: "/stats", label: "Stats & achievements", icon: <BsGraphUpArrow size={13} /> },
+];
+
+/**
+ * There are no accounts — this is a local profile card. It shows who is
+ * watching and links to everything saved on this device.
+ */
 const AccountMenu: React.FC<AccountMenuProps> = ({ visable }) => {
-  const navigate = useNavigate();
-  const { data, mutate } = useCurrentUser();
+  const { data } = useCurrentUser();
 
-  if (!visable) {
-    return null;
-  }
-
-  const signOut = () => {
-    mutate(null);
-    navigate("/auth");
-  };
+  if (!visable) return null;
 
   return (
-    <div className="bg-black w-56 absolute top-14 right-0 py-5 flex-col border-2 border-gray-800 flex">
-      <div className="flex flex-col gap-3">
-        <div className="px-3 group/item flex flex-row gap-3 items-center w-full">
-          <div className="w-8 rounded-md overflow-hidden">
-            <ProfileAvatar />
-          </div>
-          <p className="text-white text-sm group-hover/item:underline">
-            {data?.name}
+    <div className="card-light absolute right-0 top-12 w-[268px] overflow-hidden rounded-[20px] p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 overflow-hidden rounded-full">
+          <ProfileAvatar />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-semibold text-[var(--ink)]">{data.name}</p>
+          <p className="truncate text-[11.5px] text-[var(--ink-soft)]">
+            Saved on this device
           </p>
         </div>
       </div>
-      <hr className="bg-gray-600 border-0 h-px my-4" />
-      <div
-        onClick={signOut}
-        className="px-3 text-center text-white text-sm hover:underline cursor-pointer"
-      >
-        Sign Out
+
+      <p className="mt-3 text-[11.5px] leading-relaxed text-[var(--ink-soft)]">
+        No account needed. Your list, history and stats live in this browser only.
+      </p>
+
+      <div className="mt-3 border-t border-black/[0.07] pt-1.5">
+        {LINKS.map((l) => (
+          <Link
+            key={l.to}
+            to={l.to}
+            className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-[13px] font-medium text-[var(--ink)] transition hover:bg-black/[0.05]"
+          >
+            <span className="text-[var(--ink-soft)]">{l.icon}</span>
+            {l.label}
+          </Link>
+        ))}
       </div>
     </div>
   );

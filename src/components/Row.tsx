@@ -4,12 +4,13 @@ import SectionHeader from "./SectionHeader";
 
 interface RowProps {
   title: string;
-  jp: string;
+  jp?: string;
   to?: string;
   children: React.ReactNode;
 }
 
-const Row: React.FC<RowProps> = ({ title, jp, to, children }) => {
+/** Horizontal rail that scrolls by page, with soft glass arrows. */
+const Row: React.FC<RowProps> = ({ title, to, children }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: number) => {
@@ -18,33 +19,32 @@ const Row: React.FC<RowProps> = ({ title, jp, to, children }) => {
   };
 
   return (
-    <section className="rail-perf group/row px-4 md:px-12">
-      <SectionHeader title={title} jp={jp} to={to} />
+    <section className="rail-perf group/row">
+      <SectionHeader title={title} to={to} />
       <div className="relative">
         <div
           ref={ref}
-          className="no-scrollbar flex gap-3 overflow-x-auto scroll-smooth pb-2"
+          className="no-scrollbar flex gap-3 overflow-x-auto scroll-smooth pb-1"
           style={{
-            maskImage: "linear-gradient(to right, black 94%, transparent)",
-            WebkitMaskImage: "linear-gradient(to right, black 94%, transparent)",
+            maskImage: "linear-gradient(to right, black 95%, transparent)",
+            WebkitMaskImage: "linear-gradient(to right, black 95%, transparent)",
           }}
         >
           {children}
         </div>
-        <button
-          onClick={() => scroll(-1)}
-          aria-label={`Scroll ${title} left`}
-          className="absolute -left-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-900/95 text-zinc-300 opacity-0 shadow-xl ring-1 ring-zinc-700 transition hover:bg-red-600 hover:text-white group-hover/row:opacity-100 md:flex"
-        >
-          <BsChevronLeft size={16} />
-        </button>
-        <button
-          onClick={() => scroll(1)}
-          aria-label={`Scroll ${title} right`}
-          className="absolute -right-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-900/95 text-zinc-300 opacity-0 shadow-xl ring-1 ring-zinc-700 transition hover:bg-red-600 hover:text-white group-hover/row:opacity-100 md:flex"
-        >
-          <BsChevronRight size={16} />
-        </button>
+
+        {[-1, 1].map((dir) => (
+          <button
+            key={dir}
+            onClick={() => scroll(dir)}
+            aria-label={`Scroll ${title} ${dir < 0 ? "left" : "right"}`}
+            className={`glass absolute top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white opacity-0 transition group-hover/row:opacity-100 hover:bg-white/25 md:flex ${
+              dir < 0 ? "-left-4" : "-right-4"
+            }`}
+          >
+            {dir < 0 ? <BsChevronLeft size={15} /> : <BsChevronRight size={15} />}
+          </button>
+        ))}
       </div>
     </section>
   );

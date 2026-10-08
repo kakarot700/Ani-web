@@ -345,7 +345,7 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
   const cursorClass = controlsVisible ? "cursor-default" : "cursor-none";
 
   const menuBtn =
-    "flex h-9 w-9 items-center justify-center rounded-md text-zinc-200 transition hover:bg-white/10 hover:text-white";
+    "flex h-9 w-9 items-center justify-center rounded-md text-white/80 transition hover:bg-white/10 hover:text-white";
 
   return (
     <div
@@ -518,8 +518,8 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
             />
           </div>
 
-          <span className="ml-1 text-xs font-medium tabular-nums text-zinc-300">
-            {formatTime(current)} <span className="text-zinc-600">/</span> {formatTime(duration)}
+          <span className="ml-1 text-xs font-medium tabular-nums text-white/80">
+            {formatTime(current)} <span className="text-white/45">/</span> {formatTime(duration)}
           </span>
 
           <div className="ml-auto flex items-center gap-1">
@@ -534,8 +534,8 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
                   <HiOutlineChatAlt2 size={18} />
                 </button>
                 {menu === "subs" && (
-                  <div className="absolute bottom-11 right-0 w-44 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/95 py-1 shadow-2xl backdrop-blur">
-                    <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                  <div className="absolute bottom-11 right-0 w-44 overflow-hidden rounded-lg border border-white/15 glass py-1 shadow-2xl backdrop-blur">
+                    <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-white/55">
                       Subtitles
                     </p>
                     <button
@@ -544,7 +544,7 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
                         setMenu(null);
                       }}
                       className={`block w-full px-3 py-1.5 text-left text-sm transition hover:bg-white/5 ${
-                        activeTrack === -1 ? "font-bold text-red-500" : "text-zinc-200"
+                        activeTrack === -1 ? "font-bold text-[var(--accent)]" : "text-white/80"
                       }`}
                     >
                       Off
@@ -557,7 +557,7 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
                           setMenu(null);
                         }}
                         className={`block w-full px-3 py-1.5 text-left text-sm transition hover:bg-white/5 ${
-                          activeTrack === i ? "font-bold text-red-500" : "text-zinc-200"
+                          activeTrack === i ? "font-bold text-[var(--accent)]" : "text-white/80"
                         }`}
                       >
                         {t.label}
@@ -578,8 +578,8 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
                 <TbSettings size={18} />
               </button>
               {menu === "settings" && (
-                <div className="absolute bottom-11 right-0 w-36 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/95 py-1 shadow-2xl backdrop-blur">
-                  <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                <div className="absolute bottom-11 right-0 w-36 overflow-hidden rounded-lg border border-white/15 glass py-1 shadow-2xl backdrop-blur">
+                  <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-white/55">
                     Speed
                   </p>
                   {RATES.map((r) => (
@@ -590,7 +590,7 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
                         setMenu(null);
                       }}
                       className={`block w-full px-3 py-1.5 text-left text-sm transition hover:bg-white/5 ${
-                        rate === r ? "font-bold text-red-500" : "text-zinc-200"
+                        rate === r ? "font-bold text-[var(--accent)]" : "text-white/80"
                       }`}
                     >
                       {r === 1 ? "Normal" : `${r}×`}
