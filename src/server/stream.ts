@@ -1,10 +1,18 @@
 // ─────────────────────────────────────────────────────────────
 //  Otaku "anime server" — streaming layer
 //  Multiple player servers (9anime-style), keyed by external IDs:
-//    MegaPlay  → MyAnimeList id   (sub + dub)
-//    VidSrc    → MyAnimeList id   (sub)
-//    Videasy   → AniList id       (sub)
-//    Embed.su  → MyAnimeList id   (sub)
+//    MegaPlay   → MyAnimeList id   (sub + dub)
+//    VidSrc     → MyAnimeList id   (sub)
+//    VidSrc Pro → MyAnimeList id   (sub + dub)
+//    VidSrc Win → MyAnimeList id   (sub + dub)
+//    VidFlix    → MyAnimeList id   (sub + dub)
+//    VidLink    → MyAnimeList id   (sub + dub)
+//    Videasy    → AniList id       (sub)
+//
+//  Every entry below was probed live and returns a real player page for
+//  a known MAL/AniList id. Mirrors of the same backend are deliberately
+//  left out so the picker stays honest (e.g. vsembed.ru, vidsrc.bz and
+//  player.videasy.com are byte-identical to entries already listed).
 // ─────────────────────────────────────────────────────────────
 
 export type StreamLang = "sub" | "dub";
@@ -21,6 +29,9 @@ export const STREAM_SERVERS: StreamServer[] = [
     id: "megaplay",
     label: "MegaPlay HD",
     langs: ["sub", "dub"],
+    // Reference: https://megaplay.buzz/api — /stream/mal/{mal-id}/{ep}/{lang}.
+    // Gated on a Referer header, which browsers send for iframes; a bare
+    // request gets a soft 200 error page instead.
     build: ({ malId }, ep, lang) =>
       malId ? `https://megaplay.buzz/stream/mal/${malId}/${ep}/${lang}` : null,
   },
@@ -28,7 +39,36 @@ export const STREAM_SERVERS: StreamServer[] = [
     id: "vidsrc",
     label: "VidSrc",
     langs: ["sub"],
+    // Legacy slug form; vidsrc.me redirects onto the vidsrc.io player.
     build: ({ malId }, ep) => (malId ? `https://vidsrc.me/embed/anime/${malId}-${ep}` : null),
+  },
+  {
+    id: "vidsrc-io",
+    label: "VidSrc Pro",
+    langs: ["sub", "dub"],
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://vidsrc.io/embed/anime/${malId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidsrc-win",
+    label: "VidSrc Win",
+    langs: ["sub", "dub"],
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://vidsrc.win/embed/anime/${malId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidsrc-pm",
+    label: "VidFlix",
+    langs: ["sub", "dub"],
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://vidsrc.pm/embed/anime/${malId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidlink",
+    label: "VidLink",
+    langs: ["sub", "dub"],
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://vidlink.pro/anime/${malId}/${ep}/${lang}` : null,
   },
   {
     id: "videasy",
@@ -38,12 +78,6 @@ export const STREAM_SERVERS: StreamServer[] = [
       const id = aniListId ?? malId;
       return id ? `https://player.videasy.net/anime/${id}/${ep}` : null;
     },
-  },
-  {
-    id: "embedsu",
-    label: "Embed.su",
-    langs: ["sub"],
-    build: ({ malId }, ep) => (malId ? `https://embed.su/embed/anime/${malId}/${ep}` : null),
   },
 ];
 

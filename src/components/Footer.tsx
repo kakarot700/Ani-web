@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import SystemStatus from "./SystemStatus";
+import { STREAM_SERVERS } from "@/server/stream";
 
 const LINKS = [
   { label: "Browse", to: "/browse" },
@@ -10,7 +11,12 @@ const LINKS = [
   { label: "Stats", to: "/stats" },
 ];
 
-const NOTES = ["Catalog: AllAnime", "Players: MegaPlay · VidSrc · Videasy · Embed.su"];
+// Derived from the registry so the footer can never drift out of
+// sync with the servers the player actually offers.
+const NOTES = [
+  "Catalog: AllAnime",
+  `Players: ${STREAM_SERVERS.map((s) => s.label).join(" · ")}`,
+];
 
 /** Quiet footer: wordmark, one row of links, and the live status pill. */
 const Footer: React.FC = () => (

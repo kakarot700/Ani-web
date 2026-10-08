@@ -384,6 +384,10 @@ export default function WatchAnime() {
                 title={`${show?.name} - Episode ${ep} (${lang}) [${server.label}]`}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                // Several hosts (MegaPlay) reject requests with no Referer,
+                // so send the bare origin explicitly instead of relying on
+                // the browser default.
+                referrerPolicy="origin"
                 className="h-full w-full border-0"
               />
             )}
