@@ -11,7 +11,6 @@ import {
 } from "react-icons/bs";
 import AccountMenu from "./AccountMenu";
 import ProfileAvatar from "./ProfileAvatar";
-import Logo from "./Logo";
 import usePalette from "@/lib/palette";
 import { Segmented } from "./ui";
 import { searchShows, type ShowSummary } from "@/server/allanime";
@@ -128,9 +127,9 @@ const Navbar = () => {
           <Link
             to="/"
             aria-label="Otaku home"
-            className="press block h-9 w-9 shrink-0 overflow-hidden rounded-[9px] ring-1 ring-white/20 transition hover:ring-white/60"
+            className="glass press flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/20 hover:text-white"
           >
-            <Logo className="h-full w-full" />
+            <BsHouseDoor size={15} />
           </Link>
 
           {/* centred section control */}
