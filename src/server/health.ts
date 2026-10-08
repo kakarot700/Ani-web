@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 import { create } from "zustand";
 import { pingCatalog } from "./allanime";
-import { STREAM_SERVERS } from "./stream";
+import { pingServer, STREAM_SERVERS } from "./stream";
 
 export interface ServerPing {
   id: string;
@@ -31,16 +31,12 @@ const useApiHealth = create<ApiHealthState>((set, get) => ({
     if (get().status === "checking" && get().checkedAt !== null) return;
     set({ status: "checking" });
 
-    const probe = (s: (typeof STREAM_SERVERS)[number]): Promise<ServerPing> => {
-      const url = s.build({ malId: 20, aniListId: 21 }, 1, "sub");
-      if (!url) return Promise.resolve({ id: s.id, label: s.label, ok: false });
-      const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 7000);
-      return fetch(url, { mode: "no-cors", signal: controller.signal, cache: "no-store" })
-        .then(() => ({ id: s.id, label: s.label, ok: true }))
-        .catch(() => ({ id: s.id, label: s.label, ok: false }))
-        .finally(() => window.clearTimeout(timer));
-    };
+    const probe = (s: (typeof STREAM_SERVERS)[number]): Promise<ServerPing> =>
+      pingServer(s, { malId: 20, aniListId: 21 }, 1, "sub", 7000).then((h) => ({
+        id: s.id,
+        label: s.label,
+        ok: h.ok,
+      }));
 
     const [catalog, ...pings] = await Promise.all([
       pingCatalog(),

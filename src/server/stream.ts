@@ -202,9 +202,14 @@ export function saveAutoNext(on: boolean): void {
 }
 
 // ── Server health / latency probing (cross-origin safe) ─────
-// Uses an opaque no-cors fetch: it resolves when the host answers
-// (we only care that it's reachable + how long it took), and
-// rejects on network failure -> lets us order & fail over servers.
+// Two-step probe per server:
+//   1. CORS read — if the provider sends Access-Control-Allow-Origin we
+//      get the REAL HTTP status, so a 404/403 error page counts as down.
+//      The body is cancelled right after the headers: near-zero bandwidth.
+//   2. Otherwise (most embeds send no CORS headers) fall back to an opaque
+//      no-cors fetch: resolves when the host answers, rejects on network
+//      failure. The status stays invisible there — the in-player watchdog
+//      is the safety net for those servers.
 export interface ServerHealth {
   id: string;
   latency: number | null; // ms, null = unreachable
@@ -223,14 +228,33 @@ export function pingServer(
   const started = performance.now();
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { mode: "no-cors", signal: controller.signal, cache: "no-store" })
-    .then(() => ({
-      id: server.id,
-      latency: Math.round(performance.now() - started),
-      ok: true,
-    }))
-    .catch(() => ({ id: server.id, latency: null, ok: false }))
-    .finally(() => window.clearTimeout(timer));
+  const finish = (result: ServerHealth): ServerHealth => {
+    window.clearTimeout(timer);
+    return result;
+  };
+  const latency = () => Math.round(performance.now() - started);
+  const dropBody = async (res: Response) => {
+    try {
+      await res.body?.cancel();
+    } catch {
+      /* ignore */
+    }
+  };
+  // Step 1: try to read the real status via CORS
+  return fetch(url, { mode: "cors", signal: controller.signal, cache: "no-store" })
+    .then(async (res) => {
+      await dropBody(res);
+      return finish({ id: server.id, latency: latency(), ok: res.ok });
+    })
+    .catch(() =>
+      // Step 2: no CORS headers (or network error) — opaque reachability only
+      fetch(url, { mode: "no-cors", signal: controller.signal, cache: "no-store" })
+        .then(async (res) => {
+          await dropBody(res);
+          return finish({ id: server.id, latency: latency(), ok: true });
+        })
+        .catch(() => finish({ id: server.id, latency: null, ok: false }))
+    );
 }
 
 /** Probe all servers that support the language, ordered by latency. */

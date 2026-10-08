@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BsArrowRepeat, BsChevronDown, BsChevronUp, BsStars } from "react-icons/bs";
+import { BsArrowRepeat, BsBoxArrowUpRight, BsChevronDown, BsChevronUp, BsStars } from "react-icons/bs";
 import { STREAM_SERVERS, getServer, probeServers, type ServerHealth, type StreamLang } from "@/server/stream";
 
 interface ServerPickerProps {
@@ -10,7 +10,15 @@ interface ServerPickerProps {
   activeId: string | null; // the server actually in the player right now
   onSelect: (mode: string) => void;
   onHealth: (health: ServerHealth[]) => void;
+  /** Why auto-pilot dropped each server this episode (serverId -> reason tag). */
+  failReasons?: ReadonlyMap<string, string>;
 }
+
+const REASON_LABELS: Record<string, string> = {
+  "no-response": "no signal",
+  "went-down": "went down",
+  error: "playback error",
+};
 
 /**
  * Auto-Pilot server picker.
@@ -28,6 +36,7 @@ const ServerPicker: React.FC<ServerPickerProps> = ({
   activeId,
   onSelect,
   onHealth,
+  failReasons,
 }) => {
   const [results, setResults] = useState<ServerHealth[]>([]);
   const [probing, setProbing] = useState(false);
@@ -154,6 +163,8 @@ const ServerPicker: React.FC<ServerPickerProps> = ({
               const h = byId(s.id);
               const isManualActive = mode === s.id;
               const running = autoActive && activeId === s.id;
+              const testUrl = supports ? s.build(ids, ep, lang) : null;
+              const reason = failReasons?.get(s.id);
               const label = probing
                 ? "…"
                 : !supports
@@ -173,31 +184,48 @@ const ServerPicker: React.FC<ServerPickerProps> = ({
                     : "bg-rose-400";
 
               return (
-                <button
-                  key={s.id}
-                  onClick={() => supports && onSelect(s.id)}
-                  disabled={!supports}
-                  title={s.label}
-                  className={`press flex min-w-0 items-center gap-2 rounded-full px-3 py-2 text-left text-[12px] font-semibold transition ${
-                    isManualActive
-                      ? "bg-[#16181f] text-white"
-                      : supports
-                        ? "bg-black/[0.05] text-[var(--ink)] hover:bg-black/10"
-                        : "cursor-not-allowed bg-black/[0.03] text-[var(--ink-faint)]"
-                  }`}
-                >
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot} ${probing ? "animate-pulse" : ""}`}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{s.label}</span>
-                  {running && <span className={chip(isManualActive)}>auto</span>}
-                  <span className={chip(isManualActive)}>{label}</span>
-                  {!supports && (
-                    <span className="shrink-0 rounded-full bg-black/[0.06] px-1.5 text-[9px] uppercase text-[var(--ink-faint)]">
-                      sub
-                    </span>
+                <div key={s.id} className="flex min-w-0 items-center gap-1">
+                  <button
+                    onClick={() => supports && onSelect(s.id)}
+                    disabled={!supports}
+                    title={s.label}
+                    className={`press flex min-w-0 flex-1 items-center gap-2 rounded-full px-3 py-2 text-left text-[12px] font-semibold transition ${
+                      isManualActive
+                        ? "bg-[#16181f] text-white"
+                        : supports
+                          ? "bg-black/[0.05] text-[var(--ink)] hover:bg-black/10"
+                          : "cursor-not-allowed bg-black/[0.03] text-[var(--ink-faint)]"
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot} ${probing ? "animate-pulse" : ""}`}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{s.label}</span>
+                    {running && <span className={chip(isManualActive)}>auto</span>}
+                    {reason && (
+                      <span className="shrink-0 rounded-full bg-rose-500/15 px-1.5 text-[9px] font-semibold uppercase text-rose-500">
+                        {REASON_LABELS[reason] ?? reason}
+                      </span>
+                    )}
+                    <span className={chip(isManualActive)}>{label}</span>
+                    {!supports && (
+                      <span className="shrink-0 rounded-full bg-black/[0.06] px-1.5 text-[9px] uppercase text-[var(--ink-faint)]">
+                        sub
+                      </span>
+                    )}
+                  </button>
+                  {testUrl && (
+                    <a
+                      href={testUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`Open ${s.label} in a new tab — if this also fails, your network or browser is blocking it`}
+                      className="press flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--ink-faint)] transition hover:bg-black/10 hover:text-[var(--ink)]"
+                    >
+                      <BsBoxArrowUpRight size={11} />
+                    </a>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

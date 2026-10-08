@@ -66,6 +66,8 @@ export default function WatchAnime() {
   const attemptedRef = useRef<Set<string>>(new Set()); // servers already failed this episode
   const lastSwitchRef = useRef(0); // guards against stale iframe signals
   const gotSignalRef = useRef(false); // watchdog: player proved it's alive
+  const [failReasons, setFailReasons] = useState<ReadonlyMap<string, string>>(new Map());
+  const [exhausted, setExhausted] = useState(false); // auto tried every healthy server
 
   useEffect(() => {
     const onChange = () =>
@@ -204,12 +206,21 @@ export default function WatchAnime() {
 
   /** Auto-pilot: drop the current pick and fall back to the next best. */
   const advanceAuto = useCallback(
-    (reason: string | null) => {
+    (reason: string | null, tag?: string) => {
       // Ignore stale signals racing in from the iframe we just swapped out
       if (Date.now() - lastSwitchRef.current < 900) return;
       const current = liveRef.current.autoPick;
       if (current) {
         attemptedRef.current.add(current);
+        if (tag) {
+          const sid = current;
+          setFailReasons((prev) => {
+            if (prev.get(sid) === tag) return prev;
+            const next = new Map(prev);
+            next.set(sid, tag);
+            return next;
+          });
+        }
         // Demote it in the ranked list too — the picker shows it red
         // and future picks skip it for the rest of this episode.
         const failed = healthRef.current.find((h) => h.id === current);
@@ -218,10 +229,12 @@ export default function WatchAnime() {
       const candidates = healthRef.current.filter((h) => h.ok);
       const nextPick = candidates.find((c) => !attemptedRef.current.has(c.id));
       if (!nextPick) {
+        setExhausted(true);
         if (reason)
           push("Auto-pilot tried every healthy server — pin one manually below", "error");
         return;
       }
+      setExhausted(false);
       gotSignalRef.current = false;
       lastSwitchRef.current = Date.now();
       setAutoPick(nextPick.id);
@@ -244,12 +257,16 @@ export default function WatchAnime() {
         if (best) {
           gotSignalRef.current = false;
           lastSwitchRef.current = Date.now();
+          setExhausted(false);
           setAutoPick(best.id);
         }
         return;
       }
-      if (candidates.some((c) => c.id === current)) return; // still healthy — keep playing
-      advanceAuto(`${getServer(current).label} went down`);
+      if (candidates.some((c) => c.id === current)) {
+        setExhausted(false); // still healthy — keep playing
+        return;
+      }
+      advanceAuto(`${getServer(current).label} went down`, "went-down");
     },
     [advanceAuto]
   );
@@ -259,6 +276,8 @@ export default function WatchAnime() {
     (m: string) => {
       if (m === "auto") {
         attemptedRef.current.clear();
+        setFailReasons(new Map());
+        setExhausted(false);
         gotSignalRef.current = false;
         setMode("auto");
         savePreferredServer("auto");
@@ -282,6 +301,8 @@ export default function WatchAnime() {
   // auto-pilot re-optimizes onto the currently fastest healthy server.
   useEffect(() => {
     attemptedRef.current.clear();
+    setFailReasons(new Map());
+    setExhausted(false);
     const live = liveRef.current;
     if (live.mode === "auto" && live.autoPick) {
       const best = healthRef.current.find((h) => h.ok);
@@ -290,18 +311,34 @@ export default function WatchAnime() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ep, lang, id]);
 
-  // Watchdog: players that post events must prove they're alive within
-  // 12s of loading, otherwise auto-pilot assumes a silent failure and
-  // falls back to the next server. Only for event-posting servers.
+  // Watchdog: players that post events must prove they're alive, otherwise
+  // auto-pilot assumes a silent failure and falls back. A healthy player
+  // can stay silent for a while though (slow load, autoplay waiting on a
+  // tap), so the first silent period only warns — the second one fails over.
   useEffect(() => {
     if (mode !== "auto" || !autoPick) return;
     if (!getServer(autoPick).signals) return;
-    const t = window.setTimeout(() => {
-      if (!gotSignalRef.current)
-        advanceAuto(`${getServer(autoPick).label} gave no response`);
-    }, 12000);
-    return () => window.clearTimeout(t);
-  }, [mode, autoPick, ep, lang, advanceAuto]);
+    gotSignalRef.current = false;
+    let strikes = 0;
+    let timer = 0;
+    const arm = () => {
+      timer = window.setTimeout(() => {
+        if (gotSignalRef.current) return;
+        strikes += 1;
+        if (strikes < 2) {
+          push(
+            `${getServer(autoPick).label} hasn't sent a signal yet — tap play inside the player if one is showing`,
+            "info"
+          );
+          arm();
+        } else {
+          advanceAuto(`${getServer(autoPick).label} gave no response`, "no-response");
+        }
+      }, 12000);
+    };
+    arm();
+    return () => window.clearTimeout(timer);
+  }, [mode, autoPick, ep, lang, advanceAuto, push]);
 
   // One listener for all player messages: any message proves the player
   // is alive (feeds the watchdog), errors trigger failover, and
@@ -336,7 +373,8 @@ export default function WatchAnime() {
       if (isError) {
         if (live.mode === "auto") {
           advanceAuto(
-            `${live.autoPick ? getServer(live.autoPick).label : "Server"} hit a playback error`
+            `${live.autoPick ? getServer(live.autoPick).label : "Server"} hit a playback error`,
+            "error"
           );
         } else {
           // Manual pin failed → jump to the best healthy backup
@@ -505,6 +543,24 @@ export default function WatchAnime() {
       </nav>
 
       <div className={`mx-auto mt-4 max-w-[1400px] px-4 md:px-6 ${lightsOff ? "relative z-30" : ""}`}>
+        {mode === "auto" && exhausted && (
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[16px] border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-[12.5px] leading-relaxed text-rose-100">
+            <span>
+              Auto-pilot couldn't get playback from any server. If a player is showing below, tap
+              play inside it — otherwise your network or browser may be blocking these hosts.
+            </span>
+            {embedUrl && activeServer && (
+              <a
+                href={embedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="press inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold transition hover:bg-white/20"
+              >
+                Test {activeServer.label} in a new tab
+              </a>
+            )}
+          </div>
+        )}
         {/* player */}
         <div
           ref={playerWrapRef}
@@ -622,6 +678,7 @@ export default function WatchAnime() {
                   activeId={activeId}
                   onSelect={selectMode}
                   onHealth={onHealth}
+                  failReasons={failReasons}
                 />
               )}
             </Card>
