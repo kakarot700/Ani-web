@@ -150,7 +150,7 @@ const Navbar = () => {
               </kbd>
             </button>
 
-            <div ref={notifRef} className="relative hidden sm:block">
+            <div ref={notifRef} className="relative">
               <button
                 onClick={toggleNotifs}
                 aria-label="Recently updated"
