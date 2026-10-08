@@ -1,49 +1,134 @@
 // ─────────────────────────────────────────────────────────────
 //  Otaku "anime server" — streaming layer
-//  Multiple player servers (9anime-style), keyed by external IDs:
-//    MegaPlay  → MyAnimeList id   (sub + dub)
-//    VidSrc    → MyAnimeList id   (sub)
-//    Videasy   → AniList id       (sub)
-//    Embed.su  → MyAnimeList id   (sub)
+//  Multiple player servers (9anime-style), keyed by external IDs.
+//
+//  Every entry is a drop-in <iframe> player that resolves straight from
+//  the ids AllAnime already hands us — no API key, no scraping, nothing
+//  of our own to host. Each host below was checked for two things:
+//  that the route answers, and that it allows being framed.
+//
+//    MegaPlay    → MAL id  (also ships its own AniList route)
+//    MegaPlay SU → MAL or AniList id
+//    VidCloud    → AniList or MAL id (adaptive HLS, auto OP/ED skip)
+//    VidNest     → AniList id (own source + an AnimePahe source)
+//    SupaPlay    → AniList or MAL id
+//    VidSrc      → MAL id (two mirrors; they swap domains often)
+//    Videasy     → AniList id
+//
+//  A title without a MAL id still plays through the AniList routes and
+//  vice versa, so nothing is stranded on a single id space.
 // ─────────────────────────────────────────────────────────────
 
 export type StreamLang = "sub" | "dub";
+
+export interface StreamIds {
+  malId: number | null;
+  aniListId: number | null;
+}
 
 export interface StreamServer {
   id: string;
   label: string;
   langs: StreamLang[];
-  build: (ids: { malId: number | null; aniListId: number | null }, ep: number | string, lang: StreamLang) => string | null;
+  build: (ids: StreamIds, ep: number | string, lang: StreamLang) => string | null;
+  /** Short note shown as a tooltip in the server picker. */
+  hint?: string;
 }
+
+// Accent colour handed to the players that accept one, so their skin matches Otaku.
+const ACCENT = "%23dc2626";
 
 export const STREAM_SERVERS: StreamServer[] = [
   {
     id: "megaplay",
     label: "MegaPlay HD",
     langs: ["sub", "dub"],
+    hint: "MegaPlay · MyAnimeList id · sub & dub",
     build: ({ malId }, ep, lang) =>
       malId ? `https://megaplay.buzz/stream/mal/${malId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "megaplay-ani",
+    label: "MegaPlay · AniList",
+    langs: ["sub", "dub"],
+    hint: "MegaPlay's AniList route — covers titles that have no MAL id",
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://megaplay.buzz/stream/ani/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "megaplay-su",
+    label: "MegaPlay SU",
+    langs: ["sub", "dub"],
+    hint: "MegaPlay SU · sub & dub · server-side subtitle tracks",
+    build: ({ malId, aniListId }, ep, lang) => {
+      if (malId) return `https://ani.megaplay.su/mal/${malId}/${ep}/${lang}?color=${ACCENT}`;
+      if (aniListId) return `https://ani.megaplay.su/ani/${aniListId}/${ep}/${lang}?color=${ACCENT}`;
+      return null;
+    },
+  },
+  {
+    id: "vidcloud",
+    label: "VidCloud HD",
+    langs: ["sub", "dub"],
+    hint: "Adaptive HLS with AniSkip markers — skips OP/ED for you",
+    build: ({ aniListId, malId }, ep, lang) => {
+      const query = `track=${lang}&autoSkip=1&autoNext=1`;
+      if (aniListId) return `https://vidcloud.sbs/embed/ani/${aniListId}/${ep}?${query}`;
+      if (malId) return `https://vidcloud.sbs/embed/mal/${malId}/${ep}?${query}`;
+      return null;
+    },
+  },
+  {
+    id: "vidnest",
+    label: "VidNest",
+    langs: ["sub", "dub"],
+    hint: "VidNest · AniList id · sub & dub",
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidnest-pahe",
+    label: "VidNest · Pahe",
+    langs: ["sub", "dub"],
+    hint: "VidNest's AnimePahe source — the backup when its main source is down",
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://vidnest.fun/animepahe/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "supaplay",
+    label: "SupaPlay",
+    langs: ["sub", "dub"],
+    hint: "SupaPlay Ani endpoint · AniList id, falls back to MAL",
+    build: ({ aniListId, malId }, ep, lang) => {
+      const id = aniListId ?? malId;
+      return id ? `https://supaplay.fun/stream/ani/${id}/${ep}/${lang}` : null;
+    },
   },
   {
     id: "vidsrc",
     label: "VidSrc",
     langs: ["sub"],
-    build: ({ malId }, ep) => (malId ? `https://vidsrc.me/embed/anime/${malId}-${ep}` : null),
+    hint: "VidSrc · MyAnimeList id · sub",
+    // vidsrc.me now redirects here; going direct saves a hop per episode.
+    build: ({ malId }, ep) => (malId ? `https://vidsrc.sh/embed/anime/${malId}-${ep}` : null),
+  },
+  {
+    id: "vidsrc-pm",
+    label: "VidSrc · PM",
+    langs: ["sub"],
+    hint: "VidSrc mirror — its domains come and go, so this is the backup",
+    build: ({ malId }, ep) => (malId ? `https://vidsrc.pm/embed/anime/${malId}-${ep}` : null),
   },
   {
     id: "videasy",
     label: "Videasy",
     langs: ["sub"],
+    hint: "Videasy · AniList id, falls back to MAL",
+    // player.videasy.net 301s here; skipping it avoids a redirect.
     build: ({ aniListId, malId }, ep) => {
       const id = aniListId ?? malId;
-      return id ? `https://player.videasy.net/anime/${id}/${ep}` : null;
+      return id ? `https://player.videasy.to/anime/${id}/${ep}` : null;
     },
-  },
-  {
-    id: "embedsu",
-    label: "Embed.su",
-    langs: ["sub"],
-    build: ({ malId }, ep) => (malId ? `https://embed.su/embed/anime/${malId}/${ep}` : null),
   },
 ];
 
@@ -95,31 +180,65 @@ export interface ServerHealth {
   ok: boolean;
 }
 
+// A host's reachability doesn't change from episode to episode, so healthy
+// results are reused for a minute: with a dozen servers in the list that keeps
+// skipping through episodes from firing a dozen probes every time.
+const PROBE_TTL = 60_000;
+const PROBE_CACHE_MAX = 240;
+const probeCache = new Map<string, { at: number; health: ServerHealth }>();
+
+function cacheProbe(key: string, health: ServerHealth): void {
+  if (health.ok) probeCache.set(key, { at: Date.now(), health });
+  if (probeCache.size > PROBE_CACHE_MAX) {
+    const oldest = probeCache.keys().next().value;
+    if (oldest !== undefined) probeCache.delete(oldest);
+  }
+}
+
+/** Forget cached latencies (used by the system-status re-check). */
+export function clearProbeCache(): void {
+  probeCache.clear();
+}
+
 export function pingServer(
   server: StreamServer,
-  ids: { malId: number | null; aniListId: number | null },
+  ids: StreamIds,
   ep: number | string,
   lang: StreamLang,
   timeoutMs = 6000
 ): Promise<ServerHealth> {
+  const cacheKey = `${server.id}:${ids.malId ?? "-"}:${ids.aniListId ?? "-"}:${lang}`;
+  const hit = probeCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < PROBE_TTL) return Promise.resolve(hit.health);
+
   const url = server.build(ids, ep, lang);
-  if (!url) return Promise.resolve({ id: server.id, latency: null, ok: false });
+  if (!url) {
+    const miss: ServerHealth = { id: server.id, latency: null, ok: false };
+    // no id to build with — don't keep re-checking it for this title
+    cacheProbe(cacheKey, miss);
+    return Promise.resolve(miss);
+  }
+
   const started = performance.now();
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { mode: "no-cors", signal: controller.signal, cache: "no-store" })
-    .then(() => ({
-      id: server.id,
-      latency: Math.round(performance.now() - started),
-      ok: true,
-    }))
+    .then(() => {
+      const health: ServerHealth = {
+        id: server.id,
+        latency: Math.round(performance.now() - started),
+        ok: true,
+      };
+      cacheProbe(cacheKey, health);
+      return health;
+    })
     .catch(() => ({ id: server.id, latency: null, ok: false }))
     .finally(() => window.clearTimeout(timer));
 }
 
-/** Probe all servers that support the language, ordered by latency. */
+/** Probe every server that supports the language, ordered by latency. */
 export async function probeServers(
-  ids: { malId: number | null; aniListId: number | null },
+  ids: StreamIds,
   ep: number | string,
   lang: StreamLang
 ): Promise<ServerHealth[]> {

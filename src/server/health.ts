@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 import { create } from "zustand";
 import { pingCatalog } from "./allanime";
-import { STREAM_SERVERS } from "./stream";
+import { clearProbeCache, STREAM_SERVERS } from "./stream";
 
 export interface ServerPing {
   id: string;
@@ -30,6 +30,7 @@ const useApiHealth = create<ApiHealthState>((set, get) => ({
   runChecks: async () => {
     if (get().status === "checking" && get().checkedAt !== null) return;
     set({ status: "checking" });
+    clearProbeCache();
 
     const probe = (s: (typeof STREAM_SERVERS)[number]): Promise<ServerPing> => {
       const url = s.build({ malId: 20, aniListId: 21 }, 1, "sub");

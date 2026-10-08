@@ -209,7 +209,8 @@ export default function WatchAnime() {
       const data = e.data as any;
       const ended =
         (data && (data.event === "ended" || data.type === "ended" || data === "ended")) ||
-        (data && data.event === "player" && data.player === "ended");
+        (data && data.event === "player" && data.player === "ended") ||
+        (data && (data.event === "complete" || data.type === "playbackEnded"));
       if (ended) setEp(next, lang);
     };
     window.addEventListener("message", onMessage);

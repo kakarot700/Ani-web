@@ -47,6 +47,9 @@ const ServerStatusRow: React.FC<ServerStatusRowProps> = ({
       <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
         <BsLightningChargeFill size={11} className="text-yellow-400" />
         Servers
+        <span className="rounded bg-zinc-800 px-1 font-mono text-[9px] tabular-nums text-zinc-500">
+          {STREAM_SERVERS.length}
+        </span>
       </span>
       {STREAM_SERVERS.map((s) => {
         const supports = s.langs.includes(lang);
@@ -74,6 +77,7 @@ const ServerStatusRow: React.FC<ServerStatusRowProps> = ({
             key={s.id}
             onClick={() => onSelect(s.id)}
             disabled={!supports}
+            title={s.hint ?? s.label}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold ring-1 transition ${
               isActive
                 ? "bg-red-600 text-white ring-red-600 shadow-[0_0_18px_rgba(220,38,38,0.4)]"
