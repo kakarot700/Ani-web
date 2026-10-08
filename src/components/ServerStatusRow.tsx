@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BsLightningChargeFill } from "react-icons/bs";
 import { STREAM_SERVERS, probeServers, type ServerHealth, type StreamLang } from "@/server/stream";
 
 interface ServerStatusRowProps {
@@ -11,6 +10,10 @@ interface ServerStatusRowProps {
   onHealth?: (health: ServerHealth[]) => void;
 }
 
+/**
+ * Server picker with live latency. Rendered inside a white card, so it
+ * uses the light pill vocabulary: selected = ink, unselected = quiet grey.
+ */
 const ServerStatusRow: React.FC<ServerStatusRowProps> = ({
   ids,
   ep,
@@ -44,15 +47,11 @@ const ServerStatusRow: React.FC<ServerStatusRowProps> = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-        <BsLightningChargeFill size={11} className="text-yellow-400" />
-        Servers
-      </span>
       {STREAM_SERVERS.map((s) => {
         const supports = s.langs.includes(lang);
         const h = health.get(s.id);
         const isActive = s.id === active;
-        const latencyLabel = probing
+        const label = probing
           ? "…"
           : !supports
             ? "n/a"
@@ -61,38 +60,44 @@ const ServerStatusRow: React.FC<ServerStatusRowProps> = ({
                 ? `${h.latency}ms`
                 : "down"
               : "…";
-        const dot =
-          probing || !supports
-            ? "bg-zinc-600"
-            : h?.ok
-              ? (h.latency ?? 9999) < 900
-                ? "bg-emerald-500"
-                : "bg-yellow-500"
-              : "bg-red-600";
+        const dot = probing || !supports
+          ? "bg-black/20"
+          : h?.ok
+            ? (h.latency ?? 9999) < 900
+              ? "bg-[var(--success)]"
+              : "bg-amber-400"
+            : "bg-rose-400";
+
         return (
           <button
             key={s.id}
             onClick={() => onSelect(s.id)}
             disabled={!supports}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold ring-1 transition ${
+            className={`press flex items-center gap-2 rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition ${
               isActive
-                ? "bg-red-600 text-white ring-red-600 shadow-[0_0_18px_rgba(220,38,38,0.4)]"
+                ? "bg-[#16181f] text-white"
                 : supports
-                  ? "bg-zinc-900 text-zinc-300 ring-zinc-700 hover:bg-zinc-800 hover:text-white"
-                  : "cursor-not-allowed bg-zinc-900/50 text-zinc-600 ring-zinc-800"
+                  ? "bg-black/[0.05] text-[var(--ink)] hover:bg-black/10"
+                  : "cursor-not-allowed bg-black/[0.03] text-[var(--ink-faint)]"
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${dot} ${probing ? "animate-pulse" : ""}`} />
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot} ${
+                probing ? "animate-pulse" : ""
+              }`}
+            />
             {s.label}
             <span
-              className={`rounded-sm px-1 font-mono text-[9px] tabular-nums ${
-                isActive ? "bg-black/25 text-red-100" : "bg-zinc-800 text-zinc-500"
+              className={`tnum rounded-full px-1.5 text-[10px] ${
+                isActive ? "bg-white/15 text-white/80" : "bg-black/[0.06] text-[var(--ink-soft)]"
               }`}
             >
-              {latencyLabel}
+              {label}
             </span>
             {!supports && (
-              <span className="rounded-sm bg-zinc-800 px-1 text-[8px] uppercase text-zinc-500">sub</span>
+              <span className="rounded-full bg-black/[0.06] px-1.5 text-[9px] uppercase text-[var(--ink-faint)]">
+                sub
+              </span>
             )}
           </button>
         );

@@ -49,31 +49,31 @@ const VoiceActorsRail: React.FC<VoiceActorsRailProps> = ({ show }) => {
           return (
             <div
               key={char.name}
-              className="w-40 shrink-0 overflow-hidden rounded-lg bg-zinc-900 ring-1 ring-zinc-800 transition hover:-translate-y-1 hover:ring-red-600/60 md:w-44"
+              className="w-40 shrink-0 overflow-hidden rounded-[22px] glass ring-1 ring-white/12 transition duration-300 hover:-translate-y-1 hover:ring-white/30 md:w-44"
             >
               <div className="flex">
-                <div className="aspect-[3/4] w-1/2 overflow-hidden bg-zinc-800">
+                <div className="aspect-[3/4] w-1/2 overflow-hidden bg-white/10">
                   {char.image ? (
                     <img src={char.image} alt={char.name} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     <div className="h-full w-full" />
                   )}
                 </div>
-                <div className="aspect-[3/4] w-1/2 overflow-hidden bg-zinc-800">
+                <div className="aspect-[3/4] w-1/2 overflow-hidden bg-white/10">
                   {va?.image ? (
                     <img src={va.image} alt={va.name} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-lg text-zinc-600">🎙</div>
+                    <div className="flex h-full items-center justify-center text-lg text-white/45">🎙</div>
                   )}
                 </div>
               </div>
               <div className="p-2.5">
                 <p className="truncate text-[11px] font-bold text-white">{char.name}</p>
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-red-500">{char.role}</p>
+                <p className="text-[9px] font-semibold uppercase tracking-wider text-white/50">{char.role}</p>
                 {va && (
-                  <p className="mt-1.5 truncate border-t border-zinc-800 pt-1.5 text-[10px] text-zinc-400">
+                  <p className="mt-1.5 truncate border-t border-white/10 pt-1.5 text-[10px] text-white/70">
                     {va.name}
-                    {va.native && <span className="font-jp text-zinc-600"> · {va.native}</span>}
+                    {va.native && <span className="font-jp text-white/45"> · {va.native}</span>}
                   </p>
                 )}
               </div>

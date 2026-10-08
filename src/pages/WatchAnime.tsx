@@ -9,16 +9,15 @@ import {
   BsCheck2,
   BsChevronLeft,
   BsChevronRight,
-  BsFillPlayFill,
-  BsGrid3X3GapFill,
-  BsListUl,
+  BsLightningChargeFill,
   BsMoonStarsFill,
   BsSunFill,
 } from "react-icons/bs";
-import { TbLayoutNavbarCollapse, TbLayoutNavbarExpand } from "react-icons/tb";
 import AnimeCard from "@/components/AnimeCard";
+import Footer from "@/components/Footer";
 import SectionHeader from "@/components/SectionHeader";
 import ServerStatusRow from "@/components/ServerStatusRow";
+import { Card, GhostPill, GlassPill, IconBadge, InfoRow, LightSegmented, Segmented } from "@/components/ui";
 import useToasts from "@/lib/toast";
 import useUserList from "@/lib/userlist";
 import {
@@ -107,21 +106,18 @@ export default function WatchAnime() {
     [watchedMap, id, lang]
   );
 
-  // episode range chunks (1–100, 101–200, …)
   const ranges = useMemo(() => {
     if (episodeList.length <= 100) return [];
     const chunks: { label: string; from: number; to: number }[] = [];
     for (let i = 0; i < episodeList.length; i += 100) {
       const from = episodeList[i];
       const to = episodeList[Math.min(i + 99, episodeList.length - 1)];
-      chunks.push({ label: `${from}-${to}`, from, to });
+      chunks.push({ label: `${from}–${to}`, from, to });
     }
     return chunks;
   }, [episodeList]);
 
-  useEffect(() => {
-    setEpRange(0);
-  }, [lang, id]);
+  useEffect(() => setEpRange(0), [lang, id]);
 
   const visibleEpisodes = useMemo(() => {
     const r = ranges[epRange];
@@ -129,7 +125,6 @@ export default function WatchAnime() {
     return episodeList.filter((n) => n >= r.from && n <= r.to);
   }, [episodeList, ranges, epRange]);
 
-  // load rich episode info for the detailed list view
   useEffect(() => {
     if (epView !== "list" || !show) return;
     let alive = true;
@@ -165,9 +160,8 @@ export default function WatchAnime() {
     (next: number, l: StreamLang) => {
       setSearchParams({ ep: String(next), lang: l });
       window.scrollTo({ top: 0, behavior: "smooth" });
-      push(`Streaming episode ${next} · ${getServer(serverId).label}`, "success");
     },
-    [setSearchParams, push, serverId]
+    [setSearchParams]
   );
 
   const idx = episodeList.indexOf(ep);
@@ -180,18 +174,17 @@ export default function WatchAnime() {
       savePreferredServer(sid);
       const s = getServer(sid);
       push(`Switched to ${s.label}`, "info");
-      failedOverRef.current = true; // user picked; don't auto-override
+      failedOverRef.current = true;
       if (!s.langs.includes(lang)) setEp(ep, "sub");
     },
     [push, lang, ep, setEp]
   );
 
-  // automatic failover: if the active server probes down, hop to the best healthy one
   const onHealth = useCallback(
     (health: ServerHealth[]) => {
       if (failedOverRef.current) return;
       const active = health.find((h) => h.id === serverId);
-      if (active && active.ok) return; // current server is fine
+      if (active && active.ok) return;
       const best = health.find((h) => h.ok);
       if (best && best.id !== serverId) {
         setServerId(best.id);
@@ -202,7 +195,6 @@ export default function WatchAnime() {
     [serverId, push]
   );
 
-  // cross-origin "ended" events (Videasy posts player events) -> auto-next
   useEffect(() => {
     if (!autoNext || !next) return;
     const onMessage = (e: MessageEvent) => {
@@ -215,12 +207,6 @@ export default function WatchAnime() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [autoNext, next, lang, setEp]);
-
-  useEffect(() => {
-    if (!show) return;
-    saveWatchProgressIfNew();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show, ep, lang]);
 
   const saveWatchProgressIfNew = useCallback(() => {
     if (!show) return;
@@ -244,6 +230,12 @@ export default function WatchAnime() {
     }
   }, [show, ep, lang, markWatched]);
 
+  useEffect(() => {
+    if (!show) return;
+    saveWatchProgressIfNew();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, ep, lang]);
+
   const server = getServer(serverId);
   const ids = useMemo(
     () => ({ malId: show?.malId ?? null, aniListId: show?.aniListId ?? null }),
@@ -254,85 +246,74 @@ export default function WatchAnime() {
     [show, server, ids, ep, lang]
   );
 
-  const externalUrl = useMemo(
-    () => (show?.malId ? `https://myanimelist.net/anime/${show.malId}` : null),
-    [show]
-  );
-
   const floatBtn =
-    "flex h-9 w-9 items-center justify-center rounded-md bg-black/70 text-zinc-200 ring-1 ring-white/10 backdrop-blur transition hover:bg-black/90 hover:text-white";
+    "press flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white/90 ring-1 ring-white/15 backdrop-blur-xl transition hover:bg-black/75 hover:text-white";
 
   const renderEpButton = (n: number) => {
-    const watched = watchedSet.has(n);
+    const isWatched = watchedSet.has(n);
+    const active = n === ep;
     return (
       <button
         key={n}
         onClick={() => setEp(n, lang)}
-        className={`relative flex items-center justify-center gap-1 overflow-hidden rounded-md py-2 text-xs font-semibold transition ${
-          n === ep
-            ? "bg-red-600 text-white shadow-[0_0_16px_rgba(220,38,38,0.45)]"
-            : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+        className={`press tnum relative rounded-[12px] py-2.5 text-[12.5px] font-semibold transition ${
+          active
+            ? "bg-[#16181f] text-white"
+            : isWatched
+              ? "bg-[var(--accent)]/15 text-[var(--accent)] hover:bg-[var(--accent)]/25"
+              : "bg-black/[0.05] text-[var(--ink)] hover:bg-black/10"
         }`}
       >
         {n}
-        {watched && n !== ep && <BsCheck2 size={11} className="absolute right-1 top-0.5 text-emerald-400" />}
+        {isWatched && !active && (
+          <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-[var(--accent)]" />
+        )}
       </button>
     );
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-24">
+    <div className="min-h-screen pb-24">
       {lightsOff && !isFullscreen && (
-        <div className="pointer-events-none fixed inset-0 z-20 bg-black/85" aria-hidden="true" />
+        <div className="pointer-events-none fixed inset-0 z-20 bg-black/80" aria-hidden="true" />
       )}
 
       {/* top bar */}
       <nav
-        className={`sticky top-0 z-30 items-center gap-x-4 gap-y-2 border-b border-zinc-800 bg-zinc-950/95 px-4 py-2.5 backdrop-blur md:px-8 ${
+        className={`sticky top-0 z-30 items-center gap-3 px-3 py-3 transition-all md:px-5 ${
           theater ? "hidden" : "flex"
-        }`}
+        } ${lightsOff ? "" : "glass border-x-0 border-t-0"}`}
       >
-        <button onClick={() => navigate(-1)} className="text-zinc-300 transition hover:text-white" aria-label="Go back">
-          <AiOutlineLeft size={26} />
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+          className="glass press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/85 transition hover:bg-white/20 hover:text-white"
+        >
+          <AiOutlineLeft size={18} />
         </button>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-white md:text-base">{show ? show.name : "Loading…"}</p>
-          <p className="text-xs text-zinc-500">
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-semibold tracking-[-0.015em] text-white">
+            {show ? show.name : "Loading…"}
+          </p>
+          <p className="truncate text-[11.5px] text-white/55">
             Episode {ep} · {lang.toUpperCase()} · {server.label}
           </p>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex overflow-hidden rounded-md ring-1 ring-zinc-700">
-            {(["sub", "dub"] as StreamLang[]).map((l) => {
-              const available = show ? show.episodes[l].length > 0 : false;
-              return (
-                <button
-                  key={l}
-                  disabled={!available}
-                  onClick={() => setEp(ep, l)}
-                  className={`px-3.5 py-1.5 text-xs font-bold uppercase transition ${
-                    lang === l ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:text-white disabled:opacity-30"
-                  }`}
-                >
-                  {l}
-                </button>
-              );
-            })}
-          </div>
-
-          {episodeList.length > 1 && (
-            <select
-              value={ep}
-              onChange={(e) => setEp(Number(e.target.value), lang)}
-              className="max-w-36 rounded-md bg-zinc-900 px-2 py-1.5 text-xs text-white ring-1 ring-zinc-700 outline-none focus:ring-red-600"
-            >
-              {episodeList.map((n) => (
-                <option key={n} value={n}>
-                  Episode {n}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center gap-2">
+          {show && (
+            <Segmented
+              size="sm"
+              className="hidden sm:inline-flex"
+              label="Audio"
+              segments={[
+                { id: "sub" as const, label: "Sub" },
+                { id: "dub" as const, label: "Dub" },
+              ]}
+              value={lang}
+              onChange={(l) => (show.episodes[l].length > 0 ? setEp(ep, l) : undefined)}
+            />
           )}
 
           <button
@@ -340,265 +321,283 @@ export default function WatchAnime() {
               const v = !autoNext;
               setAutoNext(v);
               saveAutoNext(v);
-              push(v ? "Auto-play next episode on" : "Auto-play next episode off", "info");
+              push(v ? "Autoplay next episode on" : "Autoplay next episode off", "info");
             }}
-            title="Auto-play next episode"
-            className={`hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ring-1 transition sm:flex ${
+            title="Autoplay next episode"
+            className={`press hidden items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition sm:flex ${
               autoNext
-                ? "bg-emerald-500/15 text-emerald-400 ring-emerald-500/40"
-                : "bg-zinc-900 text-zinc-400 ring-zinc-700 hover:text-white"
+                ? "bg-[var(--success)]/20 text-white ring-1 ring-[var(--success)]/40"
+                : "glass text-white/70 hover:bg-white/20 hover:text-white"
             }`}
           >
-            <BsFillPlayFill size={11} />
+            <BsLightningChargeFill size={11} />
             Auto-next
-          </button>
-
-          <button
-            onClick={() => setLightsOff((l) => !l)}
-            title={lightsOff ? "Turn on the lights" : "Turn off the lights"}
-            className={`hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ring-1 transition sm:flex ${
-              lightsOff
-                ? "bg-yellow-400/15 text-yellow-300 ring-yellow-400/40"
-                : "bg-zinc-900 text-zinc-400 ring-zinc-700 hover:text-white"
-            }`}
-          >
-            {lightsOff ? <BsSunFill size={13} /> : <BsMoonStarsFill size={13} />}
-            Lights
           </button>
 
           <Link
             to={`/anime/${id}`}
-            className="hidden rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 ring-1 ring-zinc-700 transition hover:text-white md:block"
+            className="glass press hidden rounded-full px-4 py-2 text-[12.5px] font-semibold text-white/85 transition hover:bg-white/20 hover:text-white md:block"
           >
             Details
           </Link>
         </div>
       </nav>
 
-      <div className={`mx-auto mt-4 max-w-[1600px] px-4 md:px-8 ${lightsOff ? "relative z-30" : ""}`}>
-        <div className={`grid gap-6 ${theater ? "" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
-          {/* player column */}
-          <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <ServerStatusRow
-                ids={ids}
-                ep={ep}
-                lang={server.langs.includes(lang) ? lang : "sub"}
-                active={serverId}
-                onSelect={changeServer}
-                onHealth={onHealth}
-              />
-              {externalUrl && (
-                <a
-                  href={externalUrl}
-                  target="_blank"
-                  rel="noopener"
-                  className="rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-500 ring-1 ring-zinc-800 transition hover:text-red-500 hover:ring-red-600/60"
-                >
-                  MyAnimeList ↗
-                </a>
-              )}
-            </div>
-
-            <div
-              ref={playerWrapRef}
-              data-native-cursor
-              className={`relative overflow-hidden rounded-xl bg-black ring-1 ring-zinc-800 ${
-                theater ? "" : "shadow-[0_20px_80px_-30px_rgba(0,0,0,0.9)]"
-              }`}
-            >
-              <div className={theater ? "h-[80vh]" : "aspect-video"}>
-                {!show && !error && (
-                  <div className="flex h-full flex-col items-center justify-center gap-3">
-                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-red-600" />
-                    <p className="text-sm text-zinc-500">Contacting {server.label}…</p>
-                  </div>
-                )}
-                {error && (
-                  <div className="flex h-full items-center justify-center p-8 text-center">
-                    <div>
-                      <p className="text-zinc-300">Couldn't load this anime.</p>
-                      <button onClick={() => window.location.reload()} className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white">
-                        Retry
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {show && !embedUrl && (
-                  <div className="flex h-full items-center justify-center p-8 text-center">
-                    <div>
-                      <p className="text-zinc-300">This title isn't available on {server.label} yet — the auto-failover is trying another server.</p>
-                    </div>
-                  </div>
-                )}
-                {embedUrl && (
-                  <iframe
-                    key={`${serverId}-${ep}-${lang}`}
-                    src={embedUrl}
-                    title={`${show?.name} - Episode ${ep} (${lang}) [${server.label}]`}
-                    allowFullScreen
-                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                    className="h-full w-full border-0"
-                  />
-                )}
-
-                {embedUrl && (
-                  <div className="absolute right-3 top-3 z-10 flex gap-2">
-                    <button onClick={() => setLightsOff((l) => !l)} title="Lights" className={floatBtn}>
-                      {lightsOff ? <BsSunFill size={16} /> : <BsMoonStarsFill size={16} />}
-                    </button>
-                    <button onClick={() => setTheater((t) => !t)} title="Theater mode" className={floatBtn}>
-                      {theater ? <TbLayoutNavbarExpand size={18} /> : <TbLayoutNavbarCollapse size={18} />}
-                    </button>
-                    <button onClick={toggleFullscreen} title="Fullscreen" className={floatBtn}>
-                      {isFullscreen ? <AiOutlineFullscreenExit size={18} /> : <AiOutlineFullscreen size={18} />}
-                    </button>
-                  </div>
-                )}
+      <div className={`mx-auto mt-4 max-w-[1400px] px-4 md:px-6 ${lightsOff ? "relative z-30" : ""}`}>
+        {/* player */}
+        <div
+          ref={playerWrapRef}
+          data-native-cursor
+          className="relative overflow-hidden rounded-[28px] bg-black ring-1 ring-white/12"
+        >
+          <div className={theater ? "h-[82vh]" : "aspect-video"}>
+            {!show && !error && (
+              <div className="flex h-full flex-col items-center justify-center gap-3">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                <p className="text-[13px] text-white/55">Contacting {server.label}…</p>
               </div>
-            </div>
-
-            {show && episodeList.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-2.5">
-                <div className="flex items-center gap-2">
+            )}
+            {error && (
+              <div className="flex h-full items-center justify-center p-8 text-center">
+                <div>
+                  <p className="text-[14px] text-white/85">Couldn't load this anime.</p>
                   <button
-                    disabled={!prev}
-                    onClick={() => prev && setEp(prev, lang)}
-                    className="flex items-center gap-1 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-700 hover:text-white disabled:opacity-30"
+                    onClick={() => window.location.reload()}
+                    className="press mt-4 rounded-full bg-white px-5 py-2 text-[13px] font-semibold text-[var(--ink)] transition hover:bg-white/90"
                   >
-                    <BsChevronLeft size={12} />
-                    Prev
-                  </button>
-                  <button
-                    disabled={!next}
-                    onClick={() => next && setEp(next, lang)}
-                    className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-30"
-                  >
-                    Next Episode
-                    <BsChevronRight size={12} />
+                    Retry
                   </button>
                 </div>
-                <p className="text-[11px] text-zinc-500">
-                  Auto-failover is on — if a server drops, you're moved to the fastest healthy one.
+              </div>
+            )}
+            {show && !embedUrl && (
+              <div className="flex h-full items-center justify-center p-8 text-center">
+                <p className="max-w-sm text-[13.5px] text-white/70">
+                  This title isn't on {server.label} yet — auto-failover is trying another server.
                 </p>
               </div>
             )}
+            {embedUrl && (
+              <iframe
+                key={`${serverId}-${ep}-${lang}`}
+                src={embedUrl}
+                title={`${show?.name} - Episode ${ep} (${lang}) [${server.label}]`}
+                allowFullScreen
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                className="h-full w-full border-0"
+              />
+            )}
+
+            {embedUrl && (
+              <div className="absolute right-3 top-3 z-10 flex gap-2">
+                <button onClick={() => setLightsOff((l) => !l)} title="Lights" className={floatBtn}>
+                  {lightsOff ? <BsSunFill size={15} /> : <BsMoonStarsFill size={15} />}
+                </button>
+                <button
+                  onClick={() => setTheater((t) => !t)}
+                  title="Theater mode"
+                  className={floatBtn}
+                >
+                  {theater ? <AiOutlineFullscreenExit size={16} /> : <AiOutlineFullscreen size={16} />}
+                </button>
+                <button onClick={toggleFullscreen} title="Fullscreen" className={floatBtn}>
+                  {isFullscreen ? <AiOutlineFullscreenExit size={16} /> : <AiOutlineFullscreen size={16} />}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* prev / next */}
+        {show && episodeList.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <GlassPill disabled={!prev} onClick={() => prev && setEp(prev, lang)}>
+                <BsChevronLeft size={11} />
+                Previous
+              </GlassPill>
+              <GlassPill disabled={!next} onClick={() => next && setEp(next, lang)}>
+                Next episode
+                <BsChevronRight size={11} />
+              </GlassPill>
+            </div>
+            <p className="hidden text-[11.5px] text-white/45 sm:block">
+              Auto-failover is on — if a server drops you're moved to the fastest healthy one.
+            </p>
+          </div>
+        )}
+
+        {/* body */}
+        <div className={`mt-6 grid gap-5 ${theater ? "" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
+          <div className="space-y-5">
+            <Card
+              title="Servers"
+              meta="Pick a source — latency is measured live"
+              badge={
+                <IconBadge tone="accent">
+                  <BsLightningChargeFill size={14} />
+                </IconBadge>
+              }
+            >
+              {show && (
+                <ServerStatusRow
+                  ids={ids}
+                  ep={ep}
+                  lang={server.langs.includes(lang) ? lang : "sub"}
+                  active={serverId}
+                  onSelect={changeServer}
+                  onHealth={onHealth}
+                />
+              )}
+            </Card>
 
             {show?.description && (
-              <p className="mt-4 line-clamp-2 text-sm leading-relaxed text-zinc-400">{show.description}</p>
+              <Card
+                title={show.name}
+                meta={`Episode ${ep} · ${lang.toUpperCase()}`}
+                badge={
+                  <IconBadge tone="ink">
+                    <span className="text-[12px] font-bold">EP</span>
+                  </IconBadge>
+                }
+                action={
+                  <GhostPill onClick={() => navigate(`/anime/${id}`)}>Series page</GhostPill>
+                }
+              >
+                <p className="line-clamp-3 text-[13.5px] leading-relaxed text-[var(--ink-soft)]">
+                  {show.description}
+                </p>
+                <div className="mt-3 border-t border-black/[0.07] pt-3">
+                  <InfoRow label="Watched" value={`${watchedSet.size} of ${episodeList.length}`} />
+                  <InfoRow label="Quality" value="HD · sub & dub" />
+                  <InfoRow label="Server" value={server.label} />
+                </div>
+              </Card>
             )}
           </div>
 
           {/* episode sidebar */}
           {show && episodeList.length > 0 && !theater && (
-            <aside className="lg:sticky lg:top-20 lg:self-start">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                  Episodes · {episodeList.length}
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="flex overflow-hidden rounded-md ring-1 ring-zinc-700">
-                    <button
-                      onClick={() => setEpView("grid")}
-                      aria-label="Grid view"
-                      className={`px-2.5 py-1 text-xs transition ${epView === "grid" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:text-white"}`}
-                    >
-                      <BsGrid3X3GapFill size={13} />
-                    </button>
-                    <button
-                      onClick={() => setEpView("list")}
-                      aria-label="List view"
-                      className={`px-2.5 py-1 text-xs transition ${epView === "list" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:text-white"}`}
-                    >
-                      <BsListUl size={13} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {ranges.length > 0 && (
-                <div className="no-scrollbar mt-3 flex gap-1.5 overflow-x-auto">
-                  {ranges.map((r, i) => (
-                    <button
-                      key={r.label}
-                      onClick={() => setEpRange(i)}
-                      className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold tabular-nums ring-1 transition ${
-                        i === epRange ? "bg-red-600 text-white ring-red-600" : "bg-zinc-900 text-zinc-500 ring-zinc-800 hover:text-white"
-                      }`}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {epView === "grid" ? (
-                <div className="thin-scroll mt-3 grid max-h-[24rem] grid-cols-5 gap-1.5 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60 p-2.5 sm:grid-cols-8 lg:grid-cols-5 xl:grid-cols-6">
-                  {visibleEpisodes.map(renderEpButton)}
-                </div>
-              ) : (
-                <div className="thin-scroll mt-3 max-h-[26rem] space-y-2 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60 p-2.5">
-                  {visibleEpisodes.map((n) => {
-                    const info = epInfos.get(n);
-                    const active = n === ep;
-                    const watched = watchedSet.has(n);
-                    return (
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <Card
+                title="Episodes"
+                meta={`${episodeList.length} available`}
+                badge={
+                  <IconBadge tone="ink">
+                    <span className="text-[12px] font-bold">EP</span>
+                  </IconBadge>
+                }
+                action={
+                  <LightSegmented
+                    label="Episode layout"
+                    segments={[
+                      { id: "grid" as const, label: "Grid" },
+                      { id: "list" as const, label: "List" },
+                    ]}
+                    value={epView}
+                    onChange={(v) => setEpView(v)}
+                  />
+                }
+              >
+                {ranges.length > 0 && (
+                  <div className="light-scroll mb-3 flex gap-1.5 overflow-x-auto pb-1">
+                    {ranges.map((r, i) => (
                       <button
-                        key={n}
-                        onClick={() => setEp(n, lang)}
-                        className={`flex w-full gap-3 rounded-lg p-2 text-left transition ${
-                          active ? "bg-red-600/15 ring-1 ring-red-600" : "hover:bg-zinc-800"
+                        key={r.label}
+                        onClick={() => setEpRange(i)}
+                        className={`tnum shrink-0 rounded-full px-3 py-1.5 text-[11.5px] font-semibold transition ${
+                          i === epRange
+                            ? "bg-[#16181f] text-white"
+                            : "bg-black/[0.05] text-[var(--ink-soft)] hover:bg-black/10"
                         }`}
                       >
-                        <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-zinc-800">
-                          {info?.thumbnail ? (
-                            <img src={info.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-[10px] text-zinc-600">EP {n}</div>
-                          )}
-                          {watched && (
-                            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-black">
-                              <BsCheck2 size={11} />
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className={`truncate text-xs font-bold ${active ? "text-red-500" : "text-white"}`}>
-                            {info?.title ?? `Episode ${n}`}
-                          </p>
-                          <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
-                            {info?.description || "No synopsis available for this episode yet."}
-                          </p>
-                        </div>
+                        {r.label}
                       </button>
-                    );
-                  })}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
 
-              {watchedSet.size > 0 && (
-                <p className="mt-2 text-[11px] text-zinc-500">
-                  <span className="font-bold text-emerald-400">{watchedSet.size}</span> of {episodeList.length} watched
-                </p>
-              )}
+                {epView === "grid" ? (
+                  <div className="light-scroll grid max-h-[420px] grid-cols-5 gap-1.5 overflow-y-auto">
+                    {visibleEpisodes.map(renderEpButton)}
+                  </div>
+                ) : (
+                  <div className="light-scroll max-h-[440px] space-y-1.5 overflow-y-auto">
+                    {visibleEpisodes.map((n) => {
+                      const info = epInfos.get(n);
+                      const active = n === ep;
+                      const isWatched = watchedSet.has(n);
+                      return (
+                        <button
+                          key={n}
+                          onClick={() => setEp(n, lang)}
+                          className={`press flex w-full gap-3 rounded-[16px] p-2 text-left transition ${
+                            active ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"
+                          }`}
+                        >
+                          <span className="relative h-14 w-24 shrink-0 overflow-hidden rounded-[12px] bg-black/[0.06]">
+                            {info?.thumbnail ? (
+                              <img
+                                src={info.thumbnail}
+                                alt=""
+                                loading="lazy"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="flex h-full items-center justify-center text-[10px] text-[var(--ink-faint)]">
+                                EP {n}
+                              </span>
+                            )}
+                            {isWatched && (
+                              <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--success)] text-white">
+                                <BsCheck2 size={10} />
+                              </span>
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={`block truncate text-[12.5px] font-semibold ${
+                                active ? "text-[var(--accent)]" : "text-[var(--ink)]"
+                              }`}
+                            >
+                              {info?.title ?? `Episode ${n}`}
+                            </span>
+                            <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-[var(--ink-soft)]">
+                              {info?.description || "No synopsis available yet."}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {watchedSet.size > 0 && (
+                  <p className="mt-3 text-[11.5px] text-[var(--ink-soft)]">
+                    <span className="font-semibold text-[var(--ink)]">{watchedSet.size}</span> of{" "}
+                    {episodeList.length} watched
+                  </p>
+                )}
+              </Card>
             </aside>
           )}
         </div>
 
         {related.length > 0 && (
-          <div className="mt-12">
-            <SectionHeader title="You Might Also Like" jp="関連作品" />
-            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+          <div className="mt-14">
+            <SectionHeader title="You might also like" />
+            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
               {related.map(({ relation, show: s }) => (
                 <div key={s._id} className="w-36 shrink-0 md:w-44">
-                  <AnimeCard show={s} />
-                  <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-wider text-red-500">{relation}</p>
+                  <AnimeCard show={s} tag={relation.replace(/[_-]/g, " ")} lines={1} />
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 }

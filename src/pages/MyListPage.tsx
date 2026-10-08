@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { BsBookmarkHeartFill } from "react-icons/bs";
+import { Link } from "react-router-dom";
 import AnimeCard from "@/components/AnimeCard";
-import Navbar from "@/components/Navbar";
-import Reveal from "@/components/Reveal";
+import PageShell from "@/components/PageShell";
+import { BlackPill, Card, EmptyState, IconBadge, Panel, PosterSkeleton, Segmented } from "@/components/ui";
+import { BsBookmarkHeartFill, BsCheckLg, BsClock, BsFillPlayFill, BsGraphUpArrow } from "react-icons/bs";
 import { getShow, type ShowSummary } from "@/server/allanime";
 import useUserList, { STATUS_META, type ListStatus } from "@/lib/userlist";
 
@@ -12,14 +12,13 @@ type Tab = "all" | ListStatus;
 const TABS: { id: Tab; label: string }[] = [
   { id: "all", label: "All" },
   { id: "watching", label: "Watching" },
-  { id: "plan", label: "Plan to Watch" },
-  { id: "completed", label: "Completed" },
-  { id: "hold", label: "On Hold" },
+  { id: "plan", label: "Plan" },
+  { id: "completed", label: "Done" },
+  { id: "hold", label: "Hold" },
   { id: "dropped", label: "Dropped" },
 ];
 
 export default function MyListPage() {
-  const navigate = useNavigate();
   const entries = useUserList((s) => s.entries);
   const watched = useUserList((s) => s.watched);
   const [tab, setTab] = useState<Tab>("all");
@@ -63,12 +62,14 @@ export default function MyListPage() {
     };
   }, [listedIds.join(",")]);
 
-  const filtered = useMemo(() => {
-    return listedIds.filter((id) => {
-      const status = entries[`al:${id}`]?.status ?? null;
-      return tab === "all" ? status !== null : status === tab;
-    });
-  }, [listedIds, entries, tab]);
+  const filtered = useMemo(
+    () =>
+      listedIds.filter((id) => {
+        const status = entries[`al:${id}`]?.status ?? null;
+        return tab === "all" ? status !== null : status === tab;
+      }),
+    [listedIds, entries, tab]
+  );
 
   const totalWatchedEps = useMemo(
     () => Object.values(watched).reduce((acc, list) => acc + list.length, 0),
@@ -85,98 +86,100 @@ export default function MyListPage() {
   }, [listedIds, entries]);
 
   return (
-    <>
-      <div className="noise-overlay" aria-hidden="true" />
-      <Navbar />
-      <div className="mx-auto max-w-[1500px] px-4 pb-40 pt-28 md:px-12">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <p className="mb-1 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.25em] text-red-500">
-              <BsBookmarkHeartFill size={13} />
-              Your Library
-              <span className="font-jp tracking-[0.3em] text-zinc-500">· マイリスト</span>
-            </p>
-            <h1 className="font-display text-5xl tracking-wide text-white md:text-7xl">My List</h1>
-          </div>
-          <div className="flex gap-8">
-            <div>
-              <p className="font-display text-4xl text-red-500">{listedIds.length}</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Titles</p>
-            </div>
-            <div>
-              <p className="font-display text-4xl text-red-500">{totalWatchedEps}</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                Episodes watched
-              </p>
-            </div>
-          </div>
-        </div>
+    <PageShell
+      eyebrow="Your library"
+      title="My List"
+      subtitle="Everything you've saved, kept on this device."
+      width="wide"
+    >
+      {/* summary panels */}
+      <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Panel
+          icon={<BsBookmarkHeartFill size={13} />}
+          label="Titles"
+          value={listedIds.length}
+          meta="Saved to your list"
+        />
+        <Panel
+          icon={<BsFillPlayFill size={13} />}
+          label="Episodes"
+          value={totalWatchedEps}
+          meta="Watched on this device"
+        />
+        <Panel
+          icon={<BsCheckLg size={13} />}
+          label="Finished"
+          value={counts.completed ?? 0}
+          meta="Completed titles"
+        />
+        <Panel
+          icon={<BsGraphUpArrow size={13} />}
+          label="In progress"
+          value={counts.watching ?? 0}
+          meta="Currently watching"
+        />
+      </section>
 
-        <div className="no-scrollbar mt-8 flex gap-2 overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`shrink-0 rounded-md px-4 py-2 text-xs font-bold uppercase tracking-wider ring-1 transition ${
-                tab === t.id
-                  ? "bg-red-600 text-white ring-red-600 shadow-[0_0_20px_rgba(220,38,38,0.35)]"
-                  : "bg-zinc-900 text-zinc-400 ring-zinc-800 hover:text-white"
-              }`}
-            >
-              {t.label}
-              <span className="ml-2 rounded bg-black/25 px-1.5 py-px text-[10px] tabular-nums">
-                {counts[t.id] ?? 0}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="mt-16 rounded-xl border border-zinc-800 bg-zinc-900/50 p-14 text-center">
-            <p className="font-display text-3xl tracking-wide text-zinc-300">
-              {tab === "all" ? "Nothing here yet" : `No ${TABS.find((t) => t.id === tab)?.label.toLowerCase()} titles`}
-            </p>
-            <p className="mt-2 text-sm text-zinc-500">
-              Open any anime and hit “Add to List” to start tracking.
-            </p>
-            <button
-              onClick={() => navigate("/browse")}
-              className="mt-6 rounded-md bg-red-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-red-500"
-            >
-              Browse anime
-            </button>
-          </div>
-        ) : (
-          <Reveal className="mt-8">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {filtered.map((id) => {
-                const s = shows.get(id);
-                const entry = entries[`al:${id}`];
-                if (!s) {
-                  return (
-                    <div key={id} className="aspect-[2/3] animate-pulse rounded-lg bg-zinc-900" />
-                  );
-                }
-                return (
-                  <div key={id} className="relative">
-                    <AnimeCard show={s} />
-                    {entry?.status && (
-                      <span className="absolute left-1.5 top-1.5 z-10 rounded-sm bg-black/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400 backdrop-blur">
-                        {STATUS_META[entry.status].label}
-                      </span>
-                    )}
-                    {typeof entry?.rating === "number" && (
-                      <span className="absolute bottom-14 left-1.5 z-10 rounded-sm bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-yellow-400 backdrop-blur">
-                        ★ {entry.rating}/10
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Reveal>
-        )}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <Segmented segments={TABS} value={tab} onChange={setTab} />
+        <span className="text-[12.5px] text-white/50">
+          {counts[tab] ?? 0} title{(counts[tab] ?? 0) === 1 ? "" : "s"}
+        </span>
       </div>
-    </>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          title={tab === "all" ? "Nothing here yet" : `No ${tab} titles`}
+          description="Open any anime and tap “Add to list” to start tracking it. Ratings, progress and status are saved in this browser."
+          action={
+            <Link to="/browse">
+              <BlackPill className="bg-white text-[var(--ink)] hover:bg-white/90">
+                Browse anime
+              </BlackPill>
+            </Link>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {filtered.map((id) => {
+            const s = shows.get(id);
+            const entry = entries[`al:${id}`];
+            if (!s) return <PosterSkeleton key={id} />;
+            return (
+              <div key={id} className="relative">
+                <AnimeCard show={s} />
+                {entry?.status && (
+                  <span className="glass-strong absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white">
+                    {STATUS_META[entry.status].label}
+                  </span>
+                )}
+                {typeof entry?.rating === "number" && (
+                  <span className="glass-strong absolute bottom-16 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white">
+                    ★ {entry.rating}/10
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {listedIds.length > 0 && (
+        <Card
+          className="mt-8"
+          title="Keep going"
+          meta="Jump back into the series you were watching"
+          badge={<IconBadge tone="ink"><BsClock size={13} /></IconBadge>}
+        >
+          <div className="flex flex-wrap gap-2">
+            {listedIds.slice(0, 8).map((id) => (
+              <Link key={id} to={`/anime/${id}`} className="press">
+                <span className="chip-dark">{shows.get(id)?.name ?? "Loading…"}</span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
+    </PageShell>
   );
 }

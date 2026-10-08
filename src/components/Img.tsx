@@ -6,13 +6,13 @@ interface ImgProps {
   className?: string;
   imgClassName?: string;
   eager?: boolean;
-  /** kanji glyph rendered behind / on error — gives every tile a soul */
+  /** kept for call-site compatibility; no glyph is rendered any more */
   glyph?: string;
 }
 
 /**
  * Production image: shimmer placeholder until decoded, soft fade-in,
- * and a designed fallback tile when the network fails — never a broken icon.
+ * and a calm fallback tile when the network fails — never a broken icon.
  */
 const Img: React.FC<ImgProps> = ({
   src,
@@ -20,7 +20,6 @@ const Img: React.FC<ImgProps> = ({
   className = "",
   imgClassName = "",
   eager = false,
-  glyph = "映",
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -29,7 +28,7 @@ const Img: React.FC<ImgProps> = ({
   const onError = useCallback(() => setFailed(true), []);
 
   return (
-    <div className={`relative overflow-hidden bg-zinc-800/80 ${className}`}>
+    <div className={`relative overflow-hidden bg-white/[0.07] ${className}`}>
       {!failed && src ? (
         <>
           {!loaded && <div className="shimmer absolute inset-0" aria-hidden="true" />}
@@ -47,11 +46,11 @@ const Img: React.FC<ImgProps> = ({
         </>
       ) : (
         <div
-          className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900"
+          className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/[0.1] to-white/[0.03]"
           role="img"
           aria-label={alt}
         >
-          <span className="font-jp select-none text-3xl font-bold text-zinc-700">{glyph}</span>
+          <span className="h-7 w-7 rounded-full border border-white/25 bg-white/10" />
         </div>
       )}
     </div>

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AiOutlineLeft } from "react-icons/ai";
-import { BsFillPlayFill, BsStarFill } from "react-icons/bs";
-import { HiOutlineChatAlt2, HiOutlineLightningBolt } from "react-icons/hi";
+import { BsFillPlayFill, BsLightningChargeFill, BsStarFill } from "react-icons/bs";
 import OtakuPlayer, { type SkipMarker } from "@/components/OtakuPlayer";
+import Footer from "@/components/Footer";
+import { BlackPill, Card, Chip, IconBadge, InfoRow, SuccessChip } from "@/components/ui";
 import { getMovie, movies } from "@/lib/movies";
 
 const MAL_BY_ID: Record<string, number> = {
@@ -15,8 +16,8 @@ const MAL_BY_ID: Record<string, number> = {
 };
 
 const SHORTCUTS: { key: string; action: string }[] = [
-  { key: "Space / K", action: "Play · Pause" },
-  { key: "J / L", action: "Back · Forward 10s" },
+  { key: "Space / K", action: "Play · pause" },
+  { key: "J / L", action: "Back · forward 10s" },
   { key: "← / →", action: "Seek 5s" },
   { key: "↑ / ↓", action: "Volume" },
   { key: "M", action: "Mute" },
@@ -42,14 +43,11 @@ const Watch = () => {
   const malId = data ? MAL_BY_ID[data.id] ?? data.malId : undefined;
   const progressKey = data ? `otaku-pos-${data.id}` : null;
 
-  // fetch OP/ED skip markers from Aniskip
   useEffect(() => {
     setMarkers([]);
     if (!malId) return;
     let alive = true;
-    fetch(
-      `https://api.aniskip.com/v2/skip-times/${malId}/1?types=op&types=ed&episodeLength=25`
-    )
+    fetch(`https://api.aniskip.com/v2/skip-times/${malId}/1?types=op&types=ed&episodeLength=25`)
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (!alive || !json?.found || !Array.isArray(json.results)) return;
@@ -73,7 +71,6 @@ const Watch = () => {
     };
   }, [malId]);
 
-  // resume-at-timestamp prompt
   useEffect(() => {
     setResumeAt(null);
     setStartOffset(0);
@@ -90,7 +87,6 @@ const Watch = () => {
     (t: number) => {
       if (!progressKey) return;
       try {
-        // throttle writes to ~1/sec
         if (Math.floor(t) !== Math.floor(Number(localStorage.getItem(progressKey) ?? 0))) {
           localStorage.setItem(progressKey, String(t));
         }
@@ -113,52 +109,59 @@ const Watch = () => {
 
   if (!data) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-zinc-300">Clip not found.</p>
-        <button
-          onClick={() => navigate("/")}
-          className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-        >
-          Back to home
-        </button>
-      </div>
+      <>
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="card-light rounded-[24px] p-10 text-center">
+            <p className="text-[17px] font-semibold text-[var(--ink)]">Clip not found</p>
+            <p className="mt-1.5 text-[13px] text-[var(--ink-soft)]">
+              That classic clip isn't in the collection.
+            </p>
+            <div className="mt-5 flex justify-center">
+              <BlackPill onClick={() => navigate("/")}>Back home</BlackPill>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
   const next = queue[0];
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-24">
-      <nav className="sticky top-0 z-20 flex items-center gap-4 border-b border-zinc-800/80 bg-zinc-950/90 px-4 py-3 backdrop-blur md:px-12">
+    <div className="min-h-screen pb-24">
+      {/* top bar */}
+      <nav className="glass sticky top-0 z-30 flex items-center gap-3 border-x-0 border-t-0 px-3 py-3 md:px-5">
         <button
           onClick={() => navigate("/")}
-          className="text-zinc-300 transition hover:text-white"
           aria-label="Back to home"
+          className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white"
         >
-          <AiOutlineLeft size={28} />
+          <AiOutlineLeft size={18} />
         </button>
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500">
-            Now Playing · Otaku Classics
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-semibold tracking-[-0.015em] text-white">
+            {data.title}
           </p>
-          <p className="truncate text-base font-bold text-white md:text-xl">{data.title}</p>
+          <p className="truncate text-[11.5px] text-white/55">
+            Classic clip · {data.duration} episodes · {data.year}
+          </p>
         </div>
         <button
           onClick={() => setAutoNext((c) => !c)}
-          className={`ml-auto hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition sm:flex ${
+          className={`press hidden items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition sm:flex ${
             autoNext
-              ? "bg-red-600/15 text-red-400 ring-red-600/50 hover:bg-red-600/25"
-              : "bg-zinc-900 text-zinc-400 ring-zinc-700 hover:text-white"
+              ? "bg-[var(--success)]/20 text-white ring-1 ring-[var(--success)]/40"
+              : "bg-white/10 text-white/70 ring-1 ring-white/15 hover:bg-white/20 hover:text-white"
           }`}
         >
-          <HiOutlineLightningBolt size={14} />
-          Autoplay next {autoNext ? "on" : "off"}
+          <BsLightningChargeFill size={11} />
+          Autoplay {autoNext ? "on" : "off"}
         </button>
       </nav>
 
-      <div className="mx-auto mt-6 grid max-w-[1500px] gap-8 px-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8">
-        <div className="min-w-0">
-          <div className="relative overflow-hidden rounded-xl shadow-[0_20px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-zinc-800">
+      <main className="mx-auto mt-4 grid max-w-[1400px] gap-5 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-5">
+          <div className="relative overflow-hidden rounded-[28px] bg-black ring-1 ring-white/12">
             <OtakuPlayer
               key={`${data.id}-${startOffset}`}
               src={data.videoUrl}
@@ -171,28 +174,24 @@ const Watch = () => {
               onEnded={() => autoNext && next && navigate(`/play/${next.id}`)}
             />
 
-            {/* resume prompt */}
             {resumeAt !== null && startOffset === 0 && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-6 text-center shadow-2xl animate-[fadeup_0.3s_ease]">
-                  <p className="text-sm font-semibold text-zinc-300">You left off at</p>
-                  <p className="font-display mt-1 text-4xl tracking-wide text-white">
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 backdrop-blur-md">
+                <div className="card-light rise w-[300px] rounded-[24px] p-6 text-center">
+                  <p className="text-[12.5px] font-medium text-[var(--ink-soft)]">You left off at</p>
+                  <p className="tnum mt-1 text-[34px] font-semibold tracking-[-0.03em] text-[var(--ink)]">
                     {formatMMSS(resumeAt)}
                   </p>
-                  <div className="mt-4 flex justify-center gap-3">
-                    <button
-                      onClick={() => setStartOffset(resumeAt)}
-                      className="flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-500"
-                    >
-                      <BsFillPlayFill size={16} />
+                  <div className="mt-5 flex justify-center gap-2">
+                    <BlackPill onClick={() => setStartOffset(resumeAt)}>
+                      <BsFillPlayFill size={13} />
                       Resume
-                    </button>
+                    </BlackPill>
                     <button
                       onClick={() => {
                         setResumeAt(null);
                         setStartOffset(0.01);
                       }}
-                      className="rounded-md bg-zinc-800 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:bg-zinc-700"
+                      className="press rounded-full bg-black/[0.06] px-4 py-2 text-[13px] font-semibold text-[var(--ink)] transition hover:bg-black/10"
                     >
                       Start over
                     </button>
@@ -202,93 +201,106 @@ const Watch = () => {
             )}
           </div>
 
-          <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="font-display text-3xl tracking-wide text-white md:text-4xl">{data.title}</h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-                  <span className="flex items-center gap-1 font-semibold text-yellow-400">
-                    <BsStarFill size={10} /> 8.{(data.title.length % 9) + 1}
-                  </span>
-                  <span className="text-zinc-700">•</span>
-                  <span>{data.year}</span>
-                  <span className="text-zinc-700">•</span>
-                  <span className="rounded border border-zinc-600 px-1.5 py-px">{data.rating}</span>
-                  <span className="text-zinc-700">•</span>
-                  <span>{data.duration} Episodes</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {data.genre.split(" · ").map((g) => (
-                  <span key={g} className="rounded-full border border-zinc-600 px-2.5 py-0.5 text-[11px] text-zinc-300">
-                    {g}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-zinc-300">{data.description}</p>
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-[11px] text-zinc-500">
-              <span className="flex items-center gap-2">
-                <HiOutlineChatAlt2 size={14} className="text-red-500" />
-                CC in English & 日本語 — press C to cycle.
-              </span>
-              {markers.length > 0 && (
-                <span className="flex items-center gap-2">
-                  <HiOutlineLightningBolt size={14} className="text-yellow-400" />
-                  OP/ED skip markers loaded from AniSkip.
+          <Card
+            title={data.title}
+            meta={`${data.year} · ${data.rating} · ${data.duration} episodes`}
+            badge={
+              <IconBadge tone="warm">
+                <BsFillPlayFill size={13} />
+              </IconBadge>
+            }
+            action={
+              <Chip className="bg-black/[0.06] text-[var(--ink)]">
+                <BsStarFill size={8} className="text-amber-400" />
+                8.{(data.title.length % 9) + 1}
+              </Chip>
+            }
+          >
+            <p className="text-[13.5px] leading-relaxed text-[var(--ink-soft)]">{data.description}</p>
+            <div className="mt-3.5 flex flex-wrap gap-1.5">
+              {data.genre.split(" · ").map((g) => (
+                <span key={g} className="chip-dark">
+                  {g}
                 </span>
-              )}
+              ))}
             </div>
-          </div>
+            <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-black/[0.07] pt-3.5">
+              <SuccessChip>CC in English & 日本語 · press C</SuccessChip>
+              {markers.length > 0 && <SuccessChip>OP/ED markers loaded</SuccessChip>}
+            </div>
+          </Card>
 
-          <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Keyboard shortcuts</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
+          <Card
+            title="Keyboard shortcuts"
+            meta="Works whenever the player is focused"
+            badge={
+              <IconBadge tone="ink">
+                <span className="text-[13px] font-bold">⌘</span>
+              </IconBadge>
+            }
+          >
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
               {SHORTCUTS.map((s) => (
-                <div key={s.key} className="flex items-center gap-2">
-                  <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
+                <div key={s.key} className="flex items-center justify-between gap-2 py-1">
+                  <span className="truncate text-[12.5px] text-[var(--ink-soft)]">{s.action}</span>
+                  <kbd className="shrink-0 rounded-md bg-black/[0.07] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--ink)]">
                     {s.key}
                   </kbd>
-                  <span className="text-xs text-zinc-400">{s.action}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
 
-        <aside>
-          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Up next {autoNext && <span className="text-red-500">· auto</span>}
-          </p>
-          <div className="space-y-3">
-            {queue.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => navigate(`/play/${m.id}`)}
-                className="group flex w-full items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-2.5 text-left transition hover:border-red-600/60 hover:bg-zinc-900"
-              >
-                <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg">
-                  <img
-                    src={m.thumbnailUrl}
-                    alt={m.title}
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-                    <BsFillPlayFill size={18} className="text-white" />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-white">{m.title}</p>
-                  <p className="truncate text-[11px] text-zinc-500">{m.genre}</p>
-                  <p className="mt-0.5 text-[11px] text-zinc-600">
-                    {m.duration} eps · {m.year}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+        <aside className="space-y-5">
+          <Card
+            title="Up next"
+            meta={autoNext ? "Autoplay is on" : "Autoplay is off"}
+            badge={
+              <IconBadge tone="accent">
+                <BsFillPlayFill size={13} />
+              </IconBadge>
+            }
+            flush
+          >
+            <div className="px-2 pb-2">
+              {queue.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => navigate(`/play/${m.id}`)}
+                  className="flex w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left transition hover:bg-black/[0.04]"
+                >
+                  <span className="relative aspect-video w-[86px] shrink-0 overflow-hidden rounded-[12px]">
+                    <img src={m.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition hover:opacity-100">
+                      <BsFillPlayFill size={16} className="text-white" />
+                    </span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-semibold text-[var(--ink)]">
+                      {m.title}
+                    </span>
+                    <span className="block truncate text-[11.5px] text-[var(--ink-soft)]">
+                      {m.genre}
+                    </span>
+                    <span className="block text-[11px] text-[var(--ink-faint)]">
+                      {m.duration} eps · {m.year}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Playback" meta="This clip">
+            <InfoRow label="Subtitles" value="English · 日本語" />
+            <InfoRow label="Skip markers" value={markers.length ? `${markers.length} loaded` : "none"} />
+            <InfoRow label="Autoplay next" value={autoNext ? "On" : "Off"} />
+          </Card>
         </aside>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 };

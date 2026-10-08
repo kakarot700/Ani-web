@@ -1,15 +1,18 @@
 import React, { useState } from "react";
-import { BsBookmarkCheckFill, BsShareFill, BsStarFill } from "react-icons/bs";
+import { BsBookmark, BsBookmarkCheckFill, BsShareFill, BsStarFill } from "react-icons/bs";
 import useToasts from "@/lib/toast";
 import useUserList, { STATUS_META, type ListStatus } from "@/lib/userlist";
+import { BlackPill, GhostPill } from "./ui";
 
 interface TrackingPanelProps {
   id: string;
+  /** light = for use inside white cards, glass = on the gradient */
+  tone?: "light" | "glass";
 }
 
 const STATUSES: (ListStatus | null)[] = [null, "watching", "plan", "completed", "hold", "dropped"];
 
-const TrackingPanel: React.FC<TrackingPanelProps> = ({ id }) => {
+const TrackingPanel: React.FC<TrackingPanelProps> = ({ id, tone = "light" }) => {
   const push = useToasts((s) => s.push);
   const entries = useUserList((s) => s.entries);
   const setStatus = useUserList((s) => s.setStatus);
@@ -30,55 +33,56 @@ const TrackingPanel: React.FC<TrackingPanelProps> = ({ id }) => {
   const onRate = (r: number) => {
     const next = r === rating ? null : r;
     setRating(id, next);
-    if (next) push(`Rated ${next}/10 ★`, "success");
+    if (next) push(`Rated ${next}/10`, "success");
   };
 
   const share = () => {
     const url = window.location.href;
-    if (navigator.clipboard?.writeText) {
-      void navigator.clipboard
-        .writeText(url)
-        .then(() => push("Link copied to clipboard", "success"))
-        .catch(() => push("Couldn't copy link", "error"));
-    } else {
-      push(url, "info");
-    }
+    navigator.clipboard?.writeText
+      ? void navigator.clipboard
+          .writeText(url)
+          .then(() => push("Link copied", "success"))
+          .catch(() => push("Couldn't copy link", "error"))
+      : push(url, "info");
   };
 
+  const light = tone === "light";
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2.5">
       {/* status dropdown */}
       <div className="relative">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold ring-1 transition ${
-            status
-              ? "bg-red-600 text-white ring-red-600 shadow-[0_6px_24px_-6px_rgba(220,38,38,0.5)]"
-              : "bg-zinc-800 text-zinc-200 ring-zinc-700 hover:bg-zinc-700"
-          }`}
-        >
-          <BsBookmarkCheckFill size={15} />
-          {status ? STATUS_META[status].label : "Add to List"}
-          <span className="text-[9px] opacity-70">▾</span>
-        </button>
+        {light ? (
+          <BlackPill onClick={() => setOpen((o) => !o)}>
+            {status ? <BsBookmarkCheckFill size={13} /> : <BsBookmark size={13} />}
+            {status ? STATUS_META[status].label : "Add to list"}
+          </BlackPill>
+        ) : (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className={`press flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition ${
+              status
+                ? "bg-white text-[var(--ink)]"
+                : "glass text-white/90 hover:bg-white/20"
+            }`}
+          >
+            {status ? <BsBookmarkCheckFill size={13} /> : <BsBookmark size={13} />}
+            {status ? STATUS_META[status].label : "Add to list"}
+          </button>
+        )}
+
         {open && (
-          <div className="absolute left-0 top-12 z-30 w-52 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/95 py-1 shadow-2xl backdrop-blur">
+          <div className="card-light rise absolute left-0 top-12 z-30 w-[220px] overflow-hidden rounded-[20px] p-1.5">
             {STATUSES.map((s) => (
               <button
                 key={s ?? "remove"}
                 onClick={() => onStatus(s)}
-                className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-sm transition hover:bg-white/5 ${
-                  status === s ? "font-bold text-red-500" : "text-zinc-200"
+                className={`flex w-full items-center justify-between rounded-[14px] px-3 py-2 text-left text-[13px] transition hover:bg-black/[0.05] ${
+                  status === s ? "font-semibold text-[var(--accent)]" : "text-[var(--ink)]"
                 }`}
               >
-                {s ? (
-                  <>
-                    {STATUS_META[s].label}
-                    <span className="font-jp text-[10px] text-zinc-500">{STATUS_META[s].jp}</span>
-                  </>
-                ) : (
-                  <span className="text-zinc-400">Remove from list</span>
-                )}
+                {s ? STATUS_META[s].label : <span className="text-[var(--ink-soft)]">Remove from list</span>}
+                {status === s && <span className="text-[var(--accent)]">✓</span>}
               </button>
             ))}
           </div>
@@ -86,29 +90,50 @@ const TrackingPanel: React.FC<TrackingPanelProps> = ({ id }) => {
       </div>
 
       {/* 1–10 rating */}
-      <div className="flex items-center gap-0.5 rounded-md bg-zinc-800 px-2.5 py-1.5 ring-1 ring-zinc-700">
+      <div
+        className={
+          light
+            ? "flex items-center gap-0.5 rounded-full bg-black/[0.06] px-2.5 py-1.5"
+            : "glass flex items-center gap-0.5 rounded-full px-2.5 py-1.5"
+        }
+      >
         {Array.from({ length: 10 }, (_, i) => i + 1).map((r) => (
           <button
             key={r}
             onClick={() => onRate(r)}
             aria-label={`Rate ${r} out of 10`}
-            className="p-0.5 transition hover:scale-125"
+            className="press p-0.5"
           >
             <BsStarFill
-              size={13}
-              className={r <= (rating ?? 0) ? "text-yellow-400" : "text-zinc-600"}
+              size={12}
+              className={
+                r <= (rating ?? 0)
+                  ? light
+                    ? "text-amber-400"
+                    : "text-amber-300"
+                  : light
+                    ? "text-black/15"
+                    : "text-white/25"
+              }
             />
           </button>
         ))}
       </div>
 
-      <button
-        onClick={share}
-        className="flex items-center gap-2 rounded-md bg-zinc-800 px-4 py-2.5 text-sm font-bold text-zinc-200 ring-1 ring-zinc-700 transition hover:bg-zinc-700"
-      >
-        <BsShareFill size={14} />
-        Share
-      </button>
+      {light ? (
+        <GhostPill onClick={share}>
+          <BsShareFill size={11} />
+          Share
+        </GhostPill>
+      ) : (
+        <button
+          onClick={share}
+          className="press glass flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-white/90 transition hover:bg-white/20"
+        >
+          <BsShareFill size={11} />
+          Share
+        </button>
+      )}
     </div>
   );
 };

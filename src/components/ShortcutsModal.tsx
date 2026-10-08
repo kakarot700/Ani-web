@@ -1,6 +1,7 @@
 import React from "react";
 import { AiOutlineClose } from "react-icons/ai";
 import useFocusTrap from "@/hooks/useFocusTrap";
+import { DarkChip, IconBadge } from "./ui";
 
 interface ShortcutsModalProps {
   open: boolean;
@@ -11,8 +12,8 @@ const GROUPS: { label: string; keys: { key: string; action: string }[] }[] = [
   {
     label: "Player",
     keys: [
-      { key: "Space / K", action: "Play · Pause" },
-      { key: "J / L", action: "Back · Forward 10s" },
+      { key: "Space / K", action: "Play · pause" },
+      { key: "J / L", action: "Back · forward 10s" },
       { key: "← / →", action: "Seek 5s" },
       { key: "↑ / ↓", action: "Volume" },
       { key: "M", action: "Mute" },
@@ -24,6 +25,7 @@ const GROUPS: { label: string; keys: { key: string; action: string }[] }[] = [
     label: "Site",
     keys: [
       { key: "/", action: "Focus search" },
+      { key: "⌘K", action: "Command palette" },
       { key: "?", action: "Toggle this panel" },
       { key: "Esc", action: "Close overlays" },
     ],
@@ -33,10 +35,11 @@ const GROUPS: { label: string; keys: { key: string; action: string }[] }[] = [
 const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ open, onClose }) => {
   const trapRef = useFocusTrap<HTMLDivElement>(open);
   if (!open) return null;
+
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4 backdrop-blur-md"
     >
       <div
         ref={trapRef}
@@ -45,38 +48,49 @@ const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ open, onClose }) => {
         aria-label="Keyboard shortcuts"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl animate-[fadeup_0.25s_ease] outline-none"
+        className="card-light rise w-full max-w-xl overflow-hidden rounded-[28px] outline-none"
       >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <div>
-            <p className="font-display text-2xl tracking-wide text-white">Keyboard Shortcuts</p>
-            <p className="font-jp text-[10px] tracking-[0.3em] text-zinc-500">ショートカット</p>
+        <header className="flex items-center gap-3 px-6 pb-4 pt-6">
+          <IconBadge tone="ink">
+            <span className="text-[13px] font-bold">⌘</span>
+          </IconBadge>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[19px] font-semibold tracking-[-0.02em] text-[var(--ink)]">
+              Keyboard shortcuts
+            </h2>
+            <p className="text-[12.5px] text-[var(--ink-soft)]">
+              Everything is reachable without a mouse
+            </p>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+            className="press flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.06] text-[var(--ink-soft)] transition hover:bg-black/10 hover:text-[var(--ink)]"
           >
-            <AiOutlineClose size={18} />
+            <AiOutlineClose size={16} />
           </button>
-        </div>
-        <div className="space-y-6 px-5 py-5">
+        </header>
+
+        <div className="grid gap-5 px-6 pb-6 sm:grid-cols-2">
           {GROUPS.map((g) => (
-            <div key={g.label}>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-red-500">
+            <section key={g.label}>
+              <p className="mb-2.5 text-[11.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                 {g.label}
               </p>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              <div className="space-y-1">
                 {g.keys.map((k) => (
-                  <div key={k.key} className="flex items-center justify-between rounded-md bg-zinc-800/60 px-3 py-2">
-                    <span className="text-xs text-zinc-400">{k.action}</span>
-                    <kbd className="rounded border border-zinc-600 bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-200">
-                      {k.key}
-                    </kbd>
+                  <div
+                    key={k.key}
+                    className="flex items-center justify-between gap-3 border-t border-black/[0.07] py-2 first:border-t-0"
+                  >
+                    <span className="truncate text-[12.5px] text-[var(--ink-soft)]">
+                      {k.action}
+                    </span>
+                    <DarkChip>{k.key}</DarkChip>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       </div>

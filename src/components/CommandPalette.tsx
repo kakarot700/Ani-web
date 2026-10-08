@@ -12,7 +12,6 @@ import {
   BsSearch,
   BsShuffle,
   BsStarFill,
-  BsX,
 } from "react-icons/bs";
 import { searchShows, type ShowSummary } from "@/server/allanime";
 import usePalette from "@/lib/palette";
@@ -42,7 +41,6 @@ const pushHistory = (q: string) => {
 interface Action {
   id: string;
   label: string;
-  jp: string;
   icon: React.ReactNode;
   run: () => void;
 }
@@ -66,21 +64,32 @@ const CommandPalette: React.FC = () => {
 
   const voiceSupported =
     typeof window !== "undefined" &&
-    (!!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
+    !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition;
 
   const actions: Action[] = useMemo(
     () => [
-      { id: "home", label: "Home", jp: "ホーム", icon: <BsHouseDoorFill size={15} />, run: () => navigate("/") },
-      { id: "seasons", label: "Seasons", jp: "シーズン", icon: <BsCalendar3 size={15} />, run: () => navigate("/seasons") },
-      { id: "browse", label: "Browse All", jp: "探す", icon: <BsSearch size={15} />, run: () => navigate("/browse") },
-      { id: "popular", label: "Most Popular", jp: "人気", icon: <BsStarFill size={14} />, run: () => navigate("/browse?sort=Popular") },
-      { id: "mylist", label: "My List", jp: "マイリスト", icon: <BsBookHalf size={15} />, run: () => navigate("/mylist") },
-      { id: "history", label: "History", jp: "履歴", icon: <BsClockHistory size={15} />, run: () => navigate("/history") },
-      { id: "stats", label: "Stats", jp: "統計", icon: <BsGraphUpArrow size={15} />, run: () => navigate("/stats") },
-      { id: "surprise", label: "Surprise Me", jp: "ランダム", icon: <BsShuffle size={15} />, run: () => navigate("/surprise") },
+      { id: "home", label: "Home", icon: <BsHouseDoorFill size={14} />, run: () => navigate("/") },
+      { id: "browse", label: "Browse catalog", icon: <BsSearch size={14} />, run: () => navigate("/browse") },
+      { id: "seasons", label: "Seasonal archive", icon: <BsCalendar3 size={14} />, run: () => navigate("/seasons") },
+      { id: "popular", label: "Most popular", icon: <BsStarFill size={13} />, run: () => navigate("/browse?sort=Popular") },
+      { id: "mylist", label: "My list", icon: <BsBookHalf size={14} />, run: () => navigate("/mylist") },
+      { id: "history", label: "Watch history", icon: <BsClockHistory size={14} />, run: () => navigate("/history") },
+      { id: "stats", label: "Stats & achievements", icon: <BsGraphUpArrow size={14} />, run: () => navigate("/stats") },
+      { id: "surprise", label: "Surprise me", icon: <BsShuffle size={14} />, run: () => navigate("/surprise") },
     ],
     [navigate]
   );
+
+  const stopVoice = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+    setListening(false);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -94,17 +103,6 @@ const CommandPalette: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  const stopVoice = useCallback(() => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* ignore */
-      }
-    }
-    setListening(false);
-  }, []);
 
   const toggleVoice = useCallback(() => {
     if (!voiceSupported) return;
@@ -133,7 +131,6 @@ const CommandPalette: React.FC = () => {
     }
   }, [voiceSupported, listening, stopVoice]);
 
-  // live search
   useEffect(() => {
     window.clearTimeout(timer.current);
     const q = query.trim();
@@ -156,8 +153,6 @@ const CommandPalette: React.FC = () => {
   }, [query]);
 
   const isSearching = query.trim().length > 0;
-
-  // flattened navigation list: actions (when not searching) + results
   const itemCount = isSearching ? results.length + 1 : actions.length;
 
   const selectResult = useCallback(
@@ -219,7 +214,7 @@ const CommandPalette: React.FC = () => {
   return (
     <div
       onClick={() => setOpen(false)}
-      className="fixed inset-0 z-[90] flex items-start justify-center bg-black/80 px-4 pt-[10vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[90] flex items-start justify-center bg-black/45 px-4 pt-[12vh] backdrop-blur-md"
     >
       <div
         ref={trapRef}
@@ -229,11 +224,11 @@ const CommandPalette: React.FC = () => {
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
-        className="w-full max-w-2xl overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-[0_40px_120px_-20px_rgba(0,0,0,1)] ring-1 ring-red-600/20 animate-[fadeup_0.22s_ease] outline-none"
+        className="card-light rise w-full max-w-2xl overflow-hidden rounded-[28px] outline-none"
       >
         {/* input */}
-        <div className="flex items-center gap-3 border-b border-zinc-800 px-5 py-4">
-          <span className="font-display text-2xl leading-none text-red-600">オ</span>
+        <div className="flex items-center gap-3 border-b border-black/[0.07] px-5 py-4">
+          <BsSearch size={16} className="shrink-0 text-[var(--ink-faint)]" />
           <input
             ref={inputRef}
             value={query}
@@ -241,47 +236,41 @@ const CommandPalette: React.FC = () => {
               setQuery(e.target.value);
               setActive(0);
             }}
-            placeholder="Search anime, or pick a destination…"
-            className="w-full bg-transparent text-lg text-white placeholder-zinc-600 outline-none"
+            placeholder="Search anime, or jump somewhere…"
+            className="w-full bg-transparent text-[16px] text-[var(--ink)] placeholder-[var(--ink-faint)] outline-none"
           />
           {voiceSupported && (
             <button
               onClick={toggleVoice}
               aria-label="Voice search"
-              title="Voice search"
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${
+              className={`press flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${
                 listening
-                  ? "animate-pulse bg-red-600 text-white"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  ? "animate-pulse bg-[var(--accent)] text-white"
+                  : "bg-black/[0.06] text-[var(--ink-soft)] hover:bg-black/10 hover:text-[var(--ink)]"
               }`}
             >
-              {listening ? <BsMicMuteFill size={15} /> : <BsMicFill size={15} />}
+              {listening ? <BsMicMuteFill size={14} /> : <BsMicFill size={14} />}
             </button>
           )}
-          <button
-            onClick={() => setOpen(false)}
-            aria-label="Close"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 transition hover:text-white"
-          >
-            <BsX size={15} />
-          </button>
+          <kbd className="hidden shrink-0 rounded-md bg-black/[0.06] px-1.5 py-1 text-[10px] font-semibold text-[var(--ink-soft)] sm:block">
+            esc
+          </kbd>
         </div>
 
-        <div className="thin-scroll max-h-[54vh] overflow-y-auto py-2">
+        <div className="light-scroll max-h-[52vh] overflow-y-auto py-2">
           {!isSearching && (
             <>
-              {/* recent searches */}
               {history.length > 0 && (
                 <div className="px-5 pb-3 pt-1">
-                  <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">
-                    Recent · 最近
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+                    Recent
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {history.map((h) => (
                       <button
                         key={h}
                         onClick={() => setQuery(h)}
-                        className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] text-zinc-400 transition hover:border-red-600 hover:text-white"
+                        className="press rounded-full bg-black/[0.05] px-3 py-1 text-[12px] text-[var(--ink-soft)] transition hover:bg-black/10 hover:text-[var(--ink)]"
                       >
                         {h}
                       </button>
@@ -290,8 +279,8 @@ const CommandPalette: React.FC = () => {
                 </div>
               )}
 
-              <p className="px-5 pb-1 text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">
-                Go to · 移動
+              <p className="px-5 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+                Jump to
               </p>
               {actions.map((a, i) => (
                 <button
@@ -299,23 +288,24 @@ const CommandPalette: React.FC = () => {
                   onClick={() => selectIndex(i)}
                   onMouseEnter={() => setActive(i)}
                   className={`flex w-full items-center gap-3 px-5 py-2.5 text-left transition ${
-                    i === active ? "bg-red-600/15" : "hover:bg-zinc-900"
+                    i === active ? "bg-black/[0.05]" : "hover:bg-black/[0.03]"
                   }`}
                 >
                   <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-md ${
-                      i === active ? "bg-red-600 text-white" : "bg-zinc-800 text-zinc-400"
+                    className={`flex h-8 w-8 items-center justify-center rounded-[10px] transition ${
+                      i === active
+                        ? "bg-[#16181f] text-white"
+                        : "bg-black/[0.06] text-[var(--ink-soft)]"
                     }`}
                   >
                     {a.icon}
                   </span>
-                  <span className={`flex-1 text-sm font-bold ${i === active ? "text-white" : "text-zinc-300"}`}>
+                  <span className="flex-1 text-[13.5px] font-medium text-[var(--ink)]">
                     {a.label}
                   </span>
-                  <span className="font-jp text-[10px] tracking-[0.25em] text-zinc-600">{a.jp}</span>
                   <BsArrowRight
                     size={12}
-                    className={i === active ? "text-red-500" : "text-zinc-700"}
+                    className={i === active ? "text-[var(--accent)]" : "text-[var(--ink-faint)]"}
                   />
                 </button>
               ))}
@@ -324,7 +314,13 @@ const CommandPalette: React.FC = () => {
 
           {isSearching &&
             (searching && results.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-zinc-500">Searching…</p>
+              <p className="px-5 py-12 text-center text-[13.5px] text-[var(--ink-soft)]">
+                Searching…
+              </p>
+            ) : results.length === 0 ? (
+              <p className="px-5 py-12 text-center text-[13.5px] text-[var(--ink-soft)]">
+                No titles matched "{query.trim()}"
+              </p>
             ) : (
               <>
                 {results.map((r, i) => (
@@ -332,33 +328,27 @@ const CommandPalette: React.FC = () => {
                     key={r._id}
                     onClick={() => selectIndex(i)}
                     onMouseEnter={() => setActive(i)}
-                    className={`flex w-full items-center gap-3 px-5 py-2 text-left transition ${
-                      i === active ? "bg-red-600/15" : "hover:bg-zinc-900"
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-left transition ${
+                      i === active ? "bg-black/[0.05]" : "hover:bg-black/[0.03]"
                     }`}
                   >
                     {r.thumbnail ? (
                       <img
                         src={r.thumbnail}
                         alt=""
-                        className="h-14 w-10 shrink-0 rounded-md object-cover ring-1 ring-zinc-800"
+                        className="h-[54px] w-[38px] shrink-0 rounded-[10px] object-cover"
                       />
                     ) : (
-                      <div className="h-14 w-10 shrink-0 rounded-md bg-zinc-800" />
+                      <span className="h-[54px] w-[38px] shrink-0 rounded-[10px] bg-black/[0.08]" />
                     )}
                     <span className="min-w-0 flex-1">
-                      <span
-                        className={`block truncate text-sm font-bold ${
-                          i === active ? "text-red-500" : "text-white"
-                        }`}
-                      >
+                      <span className="block truncate text-[13.5px] font-medium text-[var(--ink)]">
                         {r.name}
                       </span>
-                      <span className="mt-0.5 flex items-center gap-2 text-[10px] text-zinc-500">
-                        <span className="rounded-sm bg-red-600/90 px-1 py-px font-bold text-white">
-                          {r.type ?? "TV"}
-                        </span>
+                      <span className="mt-0.5 flex items-center gap-2 text-[11.5px] text-[var(--ink-soft)]">
+                        <span>{r.type ?? "TV"}</span>
                         {typeof r.score === "number" && r.score > 0 && (
-                          <span className="flex items-center gap-0.5 text-yellow-400">
+                          <span className="flex items-center gap-0.5 text-amber-500">
                             <BsStarFill size={8} />
                             {r.score.toFixed(1)}
                           </span>
@@ -366,38 +356,26 @@ const CommandPalette: React.FC = () => {
                         {r.episodeCount ? <span>{r.episodeCount} eps</span> : null}
                       </span>
                     </span>
-                    <BsArrowRight size={12} className={i === active ? "text-red-500" : "text-zinc-700"} />
+                    <BsArrowRight
+                      size={12}
+                      className={i === active ? "text-[var(--accent)]" : "text-[var(--ink-faint)]"}
+                    />
                   </button>
                 ))}
                 <button
                   onClick={() => selectIndex(results.length)}
                   onMouseEnter={() => setActive(results.length)}
-                  className={`flex w-full items-center gap-3 border-t border-zinc-800 px-5 py-3 text-left text-sm font-bold transition ${
+                  className={`flex w-full items-center gap-3 border-t border-black/[0.07] px-5 py-3.5 text-left text-[13px] font-medium transition ${
                     active === results.length
-                      ? "bg-red-600/15 text-red-500"
-                      : "text-zinc-400 hover:bg-zinc-900"
+                      ? "bg-black/[0.05] text-[var(--accent)]"
+                      : "text-[var(--ink-soft)] hover:bg-black/[0.03]"
                   }`}
                 >
                   <BsSearch size={14} />
-                  Search full catalog for “{query.trim()}”
+                  Search the full catalog for "{query.trim()}"
                 </button>
               </>
             ))}
-        </div>
-
-        <div className="flex items-center gap-4 border-t border-zinc-800 px-5 py-2.5 text-[10px] text-zinc-600">
-          <span>
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 font-mono">↑↓</kbd> navigate
-          </span>
-          <span>
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 font-mono">↵</kbd> open
-          </span>
-          <span>
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 font-mono">esc</kbd> close
-          </span>
-          <span className="ml-auto">
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 font-mono">⌘K</kbd> anywhere
-          </span>
         </div>
       </div>
     </div>

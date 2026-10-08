@@ -25,10 +25,10 @@ const BackToTop: React.FC = () => {
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="Back to top"
-      className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-zinc-200 shadow-2xl ring-1 ring-zinc-700 transition hover:-translate-y-1 hover:bg-red-600 hover:text-white"
+      className="press fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white text-[var(--ink)] shadow-[0_12px_34px_-12px_rgba(0,0,0,0.7)] transition hover:-translate-y-1 hover:bg-white/90"
     >
       <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r={r} fill="none" stroke="rgba(220,38,38,0.9)" strokeWidth="2.5"
+        <circle cx="24" cy="24" r={r} fill="none" stroke="var(--accent)" strokeWidth="2.5"
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - progress)}
