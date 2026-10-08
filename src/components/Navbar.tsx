@@ -127,7 +127,7 @@ const Navbar = () => {
           <Link
             to="/"
             aria-label="Otaku home"
-            className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/12 text-white transition hover:bg-white/25"
+            className="glass press flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/20 hover:text-white"
           >
             <BsHouseDoor size={15} />
           </Link>
@@ -154,10 +154,10 @@ const Navbar = () => {
               <button
                 onClick={toggleNotifs}
                 aria-label="Recently updated"
-                className={`press relative flex h-9 w-9 items-center justify-center rounded-full transition ${
+                className={`glass press relative flex h-9 w-9 items-center justify-center rounded-full transition ${
                   showNotifs
                     ? "bg-white/25 text-white"
-                    : "bg-white/12 text-white/85 hover:bg-white/20 hover:text-white"
+                    : "text-white/85 hover:bg-white/20 hover:text-white"
                 }`}
               >
                 <BsBell size={14} />
