@@ -1,10 +1,8 @@
 // ─────────────────────────────────────────────────────────────
 //  Otaku "anime server" — streaming layer
-//  Multiple player servers (9anime-style), keyed by external IDs:
-//    MegaPlay  → MyAnimeList id   (sub + dub)
-//    VidSrc    → MyAnimeList id   (sub)
-//    Videasy   → AniList id       (sub)
-//    Embed.su  → MyAnimeList id   (sub)
+//  15 embed player servers across independent providers, keyed
+//  by external IDs. Every entry verified against the provider's
+//  own docs. MAL-keyed servers listed first, then AniList-keyed.
 // ─────────────────────────────────────────────────────────────
 
 export type StreamLang = "sub" | "dub";
@@ -13,37 +11,143 @@ export interface StreamServer {
   id: string;
   label: string;
   langs: StreamLang[];
+  /** True when the player posts postMessage playback events (time/complete/error).
+   *  Auto-pilot uses this to detect silently-dead embeds via a watchdog timer. */
+  signals: boolean;
   build: (ids: { malId: number | null; aniListId: number | null }, ep: number | string, lang: StreamLang) => string | null;
 }
 
 export const STREAM_SERVERS: StreamServer[] = [
+  // ── MAL-keyed servers ──────────────────────────────────────
   {
     id: "megaplay",
     label: "MegaPlay HD",
     langs: ["sub", "dub"],
+    signals: true,
     build: ({ malId }, ep, lang) =>
       malId ? `https://megaplay.buzz/stream/mal/${malId}/${ep}/${lang}` : null,
   },
   {
-    id: "vidsrc",
-    label: "VidSrc",
-    langs: ["sub"],
-    build: ({ malId }, ep) => (malId ? `https://vidsrc.me/embed/anime/${malId}-${ep}` : null),
+    id: "megavid",
+    label: "MegaVid",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://megavid.buzz/mal/${malId}/${ep}/${lang}` : null,
   },
   {
-    id: "videasy",
-    label: "Videasy",
-    langs: ["sub"],
-    build: ({ aniListId, malId }, ep) => {
-      const id = aniListId ?? malId;
-      return id ? `https://player.videasy.net/anime/${id}/${ep}` : null;
-    },
+    id: "megaplay-mirror",
+    label: "MegaPlay Mirror",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://ani.megaplay.su/mal/${malId}/${ep}/${lang}` : null,
   },
   {
-    id: "embedsu",
-    label: "Embed.su",
+    id: "zoko",
+    label: "Zokoanime",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://zokoanime.video/stream/mal/${malId}/${ep}/${lang}?autoplay=0` : null,
+  },
+  {
+    id: "vidhawk",
+    label: "VidHawk Flow",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://vidhawk.buzz/embed/mal/${malId}/${ep}/${lang}?server=flow` : null,
+  },
+  {
+    id: "tryembed-mal",
+    label: "TryEmbed MAL",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ malId }, ep, lang) =>
+      malId
+        ? `https://tryembed.us.cc/embed/anime/mal/${malId}/${ep}/${lang}?autoNext=false`
+        : null,
+  },
+  {
+    id: "babastream",
+    label: "BabaStream",
+    langs: ["sub", "dub"],
+    signals: false,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://babastream.top/embed/${malId}/${ep}/${lang}` : null,
+  },
+
+  // ── AniList-keyed servers ──────────────────────────────────
+  {
+    id: "megaplay-ani",
+    label: "MegaPlay AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://megaplay.buzz/stream/ani/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "megavid-ani",
+    label: "MegaVid AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://megavid.buzz/ani/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "zoko-ani",
+    label: "Zoko AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://zokoanime.video/stream/anilist/${aniListId}/${ep}/${lang}?autoplay=0`
+        : null,
+  },
+  {
+    id: "vidhawk-ani",
+    label: "VidHawk Zuri",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://vidhawk.buzz/embed/ani/${aniListId}/${ep}/${lang}?server=zuri`
+        : null,
+  },
+  {
+    id: "tryembed",
+    label: "TryEmbed",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://tryembed.us.cc/embed/anime/${aniListId}/${ep}/${lang}?autoNext=false`
+        : null,
+  },
+  {
+    id: "aniembed",
+    label: "AniEmbed",
+    langs: ["sub", "dub"],
+    signals: false,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://aniembed.se/e/${aniListId}/${ep}?lang=${lang}` : null,
+  },
+  {
+    id: "vidnest",
+    label: "VidNest",
+    langs: ["sub", "dub"],
+    signals: false,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidy",
+    label: "Vidy",
     langs: ["sub"],
-    build: ({ malId }, ep) => (malId ? `https://embed.su/embed/anime/${malId}/${ep}` : null),
+    signals: true,
+    build: ({ aniListId }, ep) =>
+      aniListId ? `https://www.vidy.st/anime/${aniListId}/${ep}?nextEpisode=true` : null,
   },
 ];
 
@@ -55,9 +159,9 @@ const AUTONEXT_KEY = "otaku-autonext";
 
 export function getPreferredServer(): string {
   try {
-    return localStorage.getItem(SERVER_KEY) ?? "megaplay";
+    return localStorage.getItem(SERVER_KEY) ?? "auto";
   } catch {
-    return "megaplay";
+    return "auto";
   }
 }
 

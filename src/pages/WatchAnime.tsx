@@ -16,7 +16,7 @@ import {
 import AnimeCard from "@/components/AnimeCard";
 import Footer from "@/components/Footer";
 import SectionHeader from "@/components/SectionHeader";
-import ServerStatusRow from "@/components/ServerStatusRow";
+import ServerPicker from "@/components/ServerPicker";
 import { Card, GhostPill, GlassPill, IconBadge, InfoRow, LightSegmented, Segmented } from "@/components/ui";
 import useToasts from "@/lib/toast";
 import useUserList from "@/lib/userlist";
@@ -29,6 +29,7 @@ import {
   type ShowDetail,
 } from "@/server/allanime";
 import {
+  STREAM_SERVERS,
   getAutoNext,
   getPreferredServer,
   getServer,
@@ -52,13 +53,19 @@ export default function WatchAnime() {
   const [lightsOff, setLightsOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [related, setRelated] = useState<RelatedShow[]>([]);
-  const [serverId, setServerId] = useState<string>(getPreferredServer());
+  const [mode, setMode] = useState<string>(getPreferredServer()); // "auto" | server id
+  const [autoPick, setAutoPick] = useState<string | null>(null); // auto-pilot's current choice
   const [autoNext, setAutoNext] = useState<boolean>(getAutoNext());
   const [epView, setEpView] = useState<"grid" | "list">("grid");
   const [epRange, setEpRange] = useState(0);
   const [epInfos, setEpInfos] = useState<Map<number, EpisodeInfo>>(new Map());
   const playerWrapRef = useRef<HTMLDivElement>(null);
-  const failedOverRef = useRef(false);
+
+  // ── auto-pilot state ───────────────────────────────────────
+  const healthRef = useRef<ServerHealth[]>([]); // latest ranked probe results
+  const attemptedRef = useRef<Set<string>>(new Set()); // servers already failed this episode
+  const lastSwitchRef = useRef(0); // guards against stale iframe signals
+  const gotSignalRef = useRef(false); // watchdog: player proved it's alive
 
   useEffect(() => {
     const onChange = () =>
@@ -168,45 +175,178 @@ export default function WatchAnime() {
   const next = idx >= 0 && idx < episodeList.length - 1 ? episodeList[idx + 1] : null;
   const prev = idx > 0 ? episodeList[idx - 1] : null;
 
-  const changeServer = useCallback(
-    (sid: string) => {
-      setServerId(sid);
-      savePreferredServer(sid);
+  // Live snapshot of values the player-message listener needs, so the
+  // listener never re-attaches and never reads stale state.
+  const liveRef = useRef({
+    mode,
+    autoPick,
+    lang,
+    ep,
+    autoNext,
+    next: null as number | null,
+  });
+  liveRef.current = { mode, autoPick, lang, ep, autoNext, next };
+
+  /** Manual pin: user picked a server — respect it until it errors. */
+  const adoptManual = useCallback(
+    (sid: string, toastMsg: string | null, kind: "info" | "error" = "info") => {
       const s = getServer(sid);
-      push(`Switched to ${s.label}`, "info");
-      failedOverRef.current = true;
-      if (!s.langs.includes(lang)) setEp(ep, "sub");
+      attemptedRef.current.clear();
+      gotSignalRef.current = true; // manual choice: no watchdog second-guessing
+      setMode(sid);
+      savePreferredServer(sid);
+      lastSwitchRef.current = Date.now();
+      if (toastMsg) push(toastMsg, kind);
+      if (!s.langs.includes(liveRef.current.lang)) setEp(liveRef.current.ep, "sub");
     },
-    [push, lang, ep, setEp]
+    [push, setEp]
   );
 
+  /** Auto-pilot: drop the current pick and fall back to the next best. */
+  const advanceAuto = useCallback(
+    (reason: string | null) => {
+      // Ignore stale signals racing in from the iframe we just swapped out
+      if (Date.now() - lastSwitchRef.current < 900) return;
+      const current = liveRef.current.autoPick;
+      if (current) attemptedRef.current.add(current);
+      const candidates = healthRef.current.filter((h) => h.ok);
+      const nextPick = candidates.find((c) => !attemptedRef.current.has(c.id));
+      if (!nextPick) {
+        if (reason)
+          push("Auto-pilot tried every healthy server — pin one manually below", "error");
+        return;
+      }
+      gotSignalRef.current = false;
+      lastSwitchRef.current = Date.now();
+      setAutoPick(nextPick.id);
+      if (reason) push(`${reason} — auto-switched to ${getServer(nextPick.id).label}`, "error");
+    },
+    [push]
+  );
+
+  /** Ranked probe results arrive here from the picker. */
   const onHealth = useCallback(
     (health: ServerHealth[]) => {
-      if (failedOverRef.current) return;
-      const active = health.find((h) => h.id === serverId);
-      if (active && active.ok) return;
-      const best = health.find((h) => h.ok);
-      if (best && best.id !== serverId) {
-        setServerId(best.id);
-        savePreferredServer(best.id);
-        push(`${getServer(serverId).label} is down — switched to ${getServer(best.id).label}`, "error");
+      healthRef.current = health;
+      if (liveRef.current.mode !== "auto") return; // manual pin stands
+
+      const candidates = health.filter((h) => h.ok);
+      const current = liveRef.current.autoPick;
+
+      if (!current) {
+        const best = candidates.find((c) => !attemptedRef.current.has(c.id));
+        if (best) {
+          gotSignalRef.current = false;
+          lastSwitchRef.current = Date.now();
+          setAutoPick(best.id);
+        }
+        return;
       }
+      if (candidates.some((c) => c.id === current)) return; // still healthy — keep playing
+      advanceAuto(`${getServer(current).label} went down`);
     },
-    [serverId, push]
+    [advanceAuto]
   );
 
+  /** User-facing mode switch: "auto" or a specific server id. */
+  const selectMode = useCallback(
+    (m: string) => {
+      if (m === "auto") {
+        attemptedRef.current.clear();
+        gotSignalRef.current = false;
+        setMode("auto");
+        savePreferredServer("auto");
+        const best = healthRef.current.find((h) => h.ok);
+        if (best) {
+          lastSwitchRef.current = Date.now();
+          setAutoPick(best.id);
+          push(`Auto-pilot on — playing on ${getServer(best.id).label}`, "info");
+        } else {
+          setAutoPick(null);
+          push("Auto-pilot on — scanning servers…", "info");
+        }
+        return;
+      }
+      adoptManual(m, `Pinned ${getServer(m).label}`);
+    },
+    [adoptManual, push]
+  );
+
+  // Fresh episode / language → every server gets a clean chance, and
+  // auto-pilot re-optimizes onto the currently fastest healthy server.
   useEffect(() => {
-    if (!autoNext || !next) return;
+    attemptedRef.current.clear();
+    const live = liveRef.current;
+    if (live.mode === "auto" && live.autoPick) {
+      const best = healthRef.current.find((h) => h.ok);
+      if (best && best.id !== live.autoPick) setAutoPick(best.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ep, lang, id]);
+
+  // Watchdog: players that post events must prove they're alive within
+  // 12s of loading, otherwise auto-pilot assumes a silent failure and
+  // falls back to the next server. Only for event-posting servers.
+  useEffect(() => {
+    if (mode !== "auto" || !autoPick) return;
+    if (!getServer(autoPick).signals) return;
+    const t = window.setTimeout(() => {
+      if (!gotSignalRef.current)
+        advanceAuto(`${getServer(autoPick).label} gave no response`);
+    }, 12000);
+    return () => window.clearTimeout(t);
+  }, [mode, autoPick, ep, lang, advanceAuto]);
+
+  // One listener for all player messages: any message proves the player
+  // is alive (feeds the watchdog), errors trigger failover, and
+  // "ended"-family events drive auto-next.
+  useEffect(() => {
+    const ENDED_EVENTS = new Set(["complete", "ended", "end", "episodeEnd"]);
     const onMessage = (e: MessageEvent) => {
-      const data = e.data as any;
-      const ended =
-        (data && (data.event === "ended" || data.type === "ended" || data === "ended")) ||
-        (data && data.event === "player" && data.player === "ended");
-      if (ended) setEp(next, lang);
+      let data = e.data as any;
+      // Some players post JSON strings instead of objects
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
+      if (!data || typeof data !== "object") return;
+
+      const inner = data.type === "PLAYER_EVENT" && data.data ? data.data : data;
+      const isEnded =
+        (typeof inner.event === "string" && ENDED_EVENTS.has(inner.event)) ||
+        (typeof inner.type === "string" && ENDED_EVENTS.has(inner.type)) ||
+        (inner.event === "player" && typeof inner.player === "string" && ENDED_EVENTS.has(inner.player));
+      const isError = inner.event === "error" || inner.type === "error" || inner.event === "play_error";
+
+      gotSignalRef.current = true; // the player is alive
+
+      const live = liveRef.current;
+      if (isError) {
+        if (live.mode === "auto") {
+          advanceAuto(
+            `${live.autoPick ? getServer(live.autoPick).label : "Server"} hit a playback error`
+          );
+        } else {
+          // Manual pin failed → jump to the best healthy backup
+          const best = healthRef.current.find((h) => h.ok && h.id !== live.mode);
+          if (best)
+            adoptManual(
+              best.id,
+              `${getServer(live.mode).label} hit an error — switched to ${getServer(best.id).label}`,
+              "error"
+            );
+          else push("This server is failing and no healthy backup was found", "error");
+        }
+        return;
+      }
+      if (isEnded && live.autoNext && live.next) setEp(live.next, live.lang);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [autoNext, next, lang, setEp]);
+  }, [advanceAuto, adoptManual, setEp]);
 
   const saveWatchProgressIfNew = useCallback(() => {
     if (!show) return;
@@ -236,15 +376,27 @@ export default function WatchAnime() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, ep, lang]);
 
-  const server = getServer(serverId);
+  const activeId = mode === "auto" ? autoPick : mode;
+  const activeServer = activeId ? getServer(activeId) : null;
   const ids = useMemo(
     () => ({ malId: show?.malId ?? null, aniListId: show?.aniListId ?? null }),
     [show]
   );
   const embedUrl = useMemo(
-    () => (show ? server.build(ids, ep, server.langs.includes(lang) ? lang : "sub") : null),
-    [show, server, ids, ep, lang]
+    () =>
+      show && activeServer
+        ? activeServer.build(ids, ep, activeServer.langs.includes(lang) ? lang : "sub")
+        : null,
+    [show, activeServer, ids, ep, lang]
   );
+  const serverLabel =
+    mode === "auto"
+      ? activeServer
+        ? `Auto · ${activeServer.label}`
+        : "Auto · scanning…"
+      : activeServer
+        ? activeServer.label
+        : "—";
 
   const floatBtn =
     "press flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white/90 ring-1 ring-white/15 backdrop-blur-xl transition hover:bg-black/75 hover:text-white";
@@ -297,7 +449,7 @@ export default function WatchAnime() {
             {show ? show.name : "Loading…"}
           </p>
           <p className="truncate text-[11.5px] text-white/55">
-            Episode {ep} · {lang.toUpperCase()} · {server.label}
+            Episode {ep} · {lang.toUpperCase()} · {serverLabel}
           </p>
         </div>
 
@@ -354,7 +506,18 @@ export default function WatchAnime() {
             {!show && !error && (
               <div className="flex h-full flex-col items-center justify-center gap-3">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-                <p className="text-[13px] text-white/55">Contacting {server.label}…</p>
+                <p className="text-[13px] text-white/55">Loading…</p>
+              </div>
+            )}
+            {show && !error && mode === "auto" && !autoPick && (
+              <div className="flex h-full flex-col items-center justify-center gap-3">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                <p className="text-[13px] text-white/55">
+                  Auto-pilot is scanning {STREAM_SERVERS.length} servers…
+                </p>
+                <p className="text-[11.5px] text-white/35">
+                  It will start playing on the fastest healthy one.
+                </p>
               </div>
             )}
             {error && (
@@ -370,18 +533,20 @@ export default function WatchAnime() {
                 </div>
               </div>
             )}
-            {show && !embedUrl && (
+            {show && !embedUrl && !(mode === "auto" && !autoPick) && (
               <div className="flex h-full items-center justify-center p-8 text-center">
                 <p className="max-w-sm text-[13.5px] text-white/70">
-                  This title isn't on {server.label} yet — auto-failover is trying another server.
+                  {activeServer
+                    ? `This title isn't on ${activeServer.label} yet — auto-pilot is trying another server.`
+                    : "No playable server found yet — auto-pilot keeps trying."}
                 </p>
               </div>
             )}
             {embedUrl && (
               <iframe
-                key={`${serverId}-${ep}-${lang}`}
+                key={`${activeId}-${ep}-${lang}`}
                 src={embedUrl}
-                title={`${show?.name} - Episode ${ep} (${lang}) [${server.label}]`}
+                title={`${show?.name} - Episode ${ep} (${lang}) [${serverLabel}]`}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                 className="h-full w-full border-0"
@@ -422,7 +587,7 @@ export default function WatchAnime() {
               </GlassPill>
             </div>
             <p className="hidden text-[11.5px] text-white/45 sm:block">
-              Auto-failover is on — if a server drops you're moved to the fastest healthy one.
+              Auto-pilot is on — it picks the best server, plays it, and falls back on its own.
             </p>
           </div>
         )}
@@ -432,7 +597,7 @@ export default function WatchAnime() {
           <div className="space-y-5">
             <Card
               title="Servers"
-              meta="Pick a source — latency is measured live"
+              meta="Auto-pilot plays on the fastest healthy server — falls back on its own"
               badge={
                 <IconBadge tone="accent">
                   <BsLightningChargeFill size={14} />
@@ -440,12 +605,13 @@ export default function WatchAnime() {
               }
             >
               {show && (
-                <ServerStatusRow
+                <ServerPicker
                   ids={ids}
                   ep={ep}
-                  lang={server.langs.includes(lang) ? lang : "sub"}
-                  active={serverId}
-                  onSelect={changeServer}
+                  lang={lang}
+                  mode={mode}
+                  activeId={activeId}
+                  onSelect={selectMode}
                   onHealth={onHealth}
                 />
               )}
@@ -470,7 +636,7 @@ export default function WatchAnime() {
                 <div className="mt-3 border-t border-black/[0.07] pt-3">
                   <InfoRow label="Watched" value={`${watchedSet.size} of ${episodeList.length}`} />
                   <InfoRow label="Quality" value="HD · sub & dub" />
-                  <InfoRow label="Server" value={server.label} />
+                  <InfoRow label="Server" value={serverLabel} />
                 </div>
               </Card>
             )}
