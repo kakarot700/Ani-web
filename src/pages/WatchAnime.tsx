@@ -199,8 +199,14 @@ export default function WatchAnime() {
     if (!autoNext || !next) return;
     const onMessage = (e: MessageEvent) => {
       const data = e.data as any;
+      // "complete" is what MegaPlay (the default server) actually emits —
+      // its player posts { event: "complete", channel: "megacloud" }.
       const ended =
-        (data && (data.event === "ended" || data.type === "ended" || data === "ended")) ||
+        (data &&
+          (data.event === "ended" ||
+            data.event === "complete" ||
+            data.type === "ended" ||
+            data === "ended")) ||
         (data && data.event === "player" && data.player === "ended");
       if (ended) setEp(next, lang);
     };
