@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Logo from "./Logo";
 import SystemStatus from "./SystemStatus";
 
 const LINKS = [
@@ -18,9 +19,12 @@ const Footer: React.FC = () => (
     <div className="mx-auto max-w-[1400px] border-t border-white/12 pt-8">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-[16px] font-semibold tracking-[-0.02em] text-white">
-            otaku<span className="text-[var(--accent)]">.</span>
-          </p>
+          <div className="flex items-center gap-2">
+            <Logo className="h-7 w-7" />
+            <p className="text-[16px] font-semibold tracking-[-0.02em] text-white">
+              otaku<span className="text-[var(--accent)]">.</span>
+            </p>
+          </div>
           <p className="mt-2 max-w-sm text-[12.5px] leading-relaxed text-white/50">
             A fan project — no account, no server-side profile. Everything you track lives in this
             browser.
