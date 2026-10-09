@@ -177,7 +177,7 @@ const ServerPicker: React.FC<ServerPickerProps> = ({
                   key={s.id}
                   onClick={() => supports && onSelect(s.id)}
                   disabled={!supports}
-                  title={s.label}
+                  title={`${s.label}${(s.priority ?? 1) === 0 ? " — trusted, ad-free" : ""}`}
                   className={`press flex min-w-0 items-center gap-2 rounded-full px-3 py-2 text-left text-[12px] font-semibold transition ${
                     isManualActive
                       ? "bg-[#16181f] text-white"
@@ -189,6 +189,9 @@ const ServerPicker: React.FC<ServerPickerProps> = ({
                   <span
                     className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot} ${probing ? "animate-pulse" : ""}`}
                   />
+                  {(s.priority ?? 1) === 0 && (
+                    <BsStars size={9} className="shrink-0 text-[var(--accent)]" />
+                  )}
                   <span className="min-w-0 flex-1 truncate">{s.label}</span>
                   {running && <span className={chip(isManualActive)}>auto</span>}
                   <span className={chip(isManualActive)}>{label}</span>

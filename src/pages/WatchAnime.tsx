@@ -30,8 +30,8 @@ import {
   type ShowDetail,
 } from "@/server/allanime";
 import {
-  DEFAULT_IFRAME_SANDBOX,
   STREAM_SERVERS,
+  appendResume,
   getAutoNext,
   getPreferredServer,
   getServer,
@@ -69,6 +69,26 @@ export default function WatchAnime() {
   const lastSwitchRef = useRef(0); // guards against stale iframe signals
   const gotSignalRef = useRef(false); // watchdog: player proved it's alive
 
+  // ── playback-position carry-over ───────────────────────────
+  // The live position reported by the embed's postMessage timeupdate
+  // events. It lets us resume mid-episode whenever the player changes:
+  // auto failover, manual server pin, or a sub ↔ dub switch.
+  const positionRef = useRef(0);
+  const [resumeSeconds, setResumeSeconds] = useState(0);
+  // True only when the USER toggled sub/dub — lets the lang-mismatch
+  // effect distinguish "user asked for a track the pinned server lacks"
+  // (switch servers) from "user pinned a server that lacks the current
+  // track" (respect the pin; it plays its own fallback track).
+  const langSwitchRef = useRef(false);
+
+  /** Snapshot the current position so the next embed can resume there. */
+  const holdPosition = useCallback(() => {
+    setResumeSeconds((prev) => {
+      const t = Math.floor(positionRef.current);
+      return t > 5 ? t : prev > 5 ? prev : 0;
+    });
+  }, []);
+
   useEffect(() => {
     const onChange = () =>
       setIsFullscreen(document.fullscreenElement === playerWrapRef.current);
@@ -87,6 +107,13 @@ export default function WatchAnime() {
   const ep = Number.isFinite(epParam) ? epParam : 1;
   const requestedLang = (searchParams.get("lang") ?? "sub") as StreamLang;
   const [lang, setLang] = useState<StreamLang>("sub");
+
+  // New title or episode → playback position starts over. (A sub/dub
+  // switch deliberately does NOT reset it — see holdPosition.)
+  useEffect(() => {
+    positionRef.current = 0;
+    setResumeSeconds(0);
+  }, [id, ep]);
 
   useEffect(() => {
     let alive = true;
@@ -165,6 +192,39 @@ export default function WatchAnime() {
     else setLang("sub");
   }, [show, requestedLang]);
 
+  // If a manually pinned server can't play the requested audio (e.g. a
+  // sub-only server while dub is selected), hand control back to
+  // auto-pilot so it picks a server that has the track — carrying the
+  // playback position along instead of silently falling back to sub.
+  // Only when the USER initiated the language switch (langSwitchRef);
+  // an explicit server pin is always respected.
+  useEffect(() => {
+    const userChangedLang = langSwitchRef.current;
+    langSwitchRef.current = false;
+    if (mode === "auto" || !userChangedLang) return;
+    if (getServer(mode).langs.includes(lang)) return;
+    holdPosition();
+    attemptedRef.current.clear();
+    gotSignalRef.current = false;
+    setMode("auto");
+    savePreferredServer("auto");
+    const best = healthRef.current.find((h) => h.ok && getServer(h.id).langs.includes(lang));
+    if (best) {
+      lastSwitchRef.current = Date.now();
+      setAutoPick(best.id);
+      push(
+        `${getServer(mode).label} has no ${lang.toUpperCase()} — switched to ${getServer(best.id).label}`,
+        "info"
+      );
+    } else {
+      setAutoPick(null);
+      push(
+        `${getServer(mode).label} has no ${lang.toUpperCase()} — auto-pilot scanning…`,
+        "info"
+      );
+    }
+  }, [lang, mode, holdPosition, push]);
+
   const setEp = useCallback(
     (next: number, l: StreamLang) => {
       setSearchParams({ ep: String(next), lang: l });
@@ -193,6 +253,7 @@ export default function WatchAnime() {
   const adoptManual = useCallback(
     (sid: string, toastMsg: string | null, kind: "info" | "error" = "info") => {
       const s = getServer(sid);
+      holdPosition(); // carry the playback position into the new embed
       attemptedRef.current.clear();
       gotSignalRef.current = true; // manual choice: no watchdog second-guessing
       setMode(sid);
@@ -201,7 +262,7 @@ export default function WatchAnime() {
       if (toastMsg) push(toastMsg, kind);
       if (!s.langs.includes(liveRef.current.lang)) setEp(liveRef.current.ep, "sub");
     },
-    [push, setEp]
+    [push, setEp, holdPosition]
   );
 
   /** Auto-pilot: drop the current pick and fall back to the next best. */
@@ -218,12 +279,13 @@ export default function WatchAnime() {
           push("Auto-pilot tried every healthy server — pin one manually below", "error");
         return;
       }
+      holdPosition(); // carry the playback position into the new embed
       gotSignalRef.current = false;
       lastSwitchRef.current = Date.now();
       setAutoPick(nextPick.id);
       if (reason) push(`${reason} — auto-switched to ${getServer(nextPick.id).label}`, "error");
     },
-    [push]
+    [push, holdPosition]
   );
 
   /** Ranked probe results arrive here from the picker. */
@@ -254,6 +316,7 @@ export default function WatchAnime() {
   const selectMode = useCallback(
     (m: string) => {
       if (m === "auto") {
+        holdPosition(); // carry the playback position into the new embed
         attemptedRef.current.clear();
         gotSignalRef.current = false;
         setMode("auto");
@@ -271,7 +334,7 @@ export default function WatchAnime() {
       }
       adoptManual(m, `Pinned ${getServer(m).label}`);
     },
-    [adoptManual, push]
+    [adoptManual, push, holdPosition]
   );
 
   // Fresh episode / language → every server gets a clean chance, and
@@ -324,6 +387,24 @@ export default function WatchAnime() {
       const isError = inner.event === "error" || inner.type === "error" || inner.event === "play_error";
 
       gotSignalRef.current = true; // the player is alive
+
+      // Track the live playback position so a later server or sub/dub
+      // switch can resume exactly where the viewer is. VidLink/Vidy send
+      // PLAYER_EVENT timeupdate, Anixo sends aniembed:timeupdate.
+      const maybeT = (inner as { currentTime?: unknown }).currentTime ?? data.currentTime;
+      const isTimeUpdate =
+        inner.event === "timeupdate" ||
+        inner.event === "seeked" ||
+        inner.type === "timeupdate" ||
+        inner.type === "aniembed:timeupdate";
+      if (
+        isTimeUpdate &&
+        typeof maybeT === "number" &&
+        Number.isFinite(maybeT) &&
+        maybeT > 0
+      ) {
+        positionRef.current = maybeT;
+      }
 
       const live = liveRef.current;
       if (isError) {
@@ -384,13 +465,15 @@ export default function WatchAnime() {
     () => ({ malId: show?.malId ?? null, aniListId: show?.aniListId ?? null }),
     [show]
   );
-  const embedUrl = useMemo(
-    () =>
-      show && activeServer
-        ? activeServer.build(ids, ep, activeServer.langs.includes(lang) ? lang : "sub")
-        : null,
-    [show, activeServer, ids, ep, lang]
-  );
+  const embedUrl = useMemo(() => {
+    if (!show || !activeServer) return null;
+    const base = activeServer.build(ids, ep, activeServer.langs.includes(lang) ? lang : "sub");
+    if (!base) return null;
+    // If we just switched server or sub/dub, resume where the viewer was
+    // (VidLink startAt=, VidPlus/Vidy progress=; providers without a
+    // resume param restart — unavoidable for cross-origin embeds).
+    return resumeSeconds > 5 ? appendResume(activeServer, base, resumeSeconds) : base;
+  }, [show, activeServer, ids, ep, lang, resumeSeconds]);
   const serverLabel =
     mode === "auto"
       ? activeServer
@@ -469,7 +552,13 @@ export default function WatchAnime() {
                 { id: "dub" as const, label: "Dub" },
               ]}
               value={lang}
-              onChange={(l) => (show.episodes[l].length > 0 ? setEp(ep, l) : undefined)}
+              onChange={(l) => {
+                if (show.episodes[l].length > 0) {
+                  langSwitchRef.current = true; // user asked for this track
+                  holdPosition(); // sub ↔ dub switch keeps the playback position
+                  setEp(ep, l);
+                }
+              }}
             />
           )}
 
@@ -554,15 +643,10 @@ export default function WatchAnime() {
                 title={`${show?.name} - Episode ${ep} (${lang}) [${serverLabel}]`}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                /* Per-server sandbox: most embeds get the strict sandbox
-                   (no popup tabs, no hijacking our page) while trusted
-                   ad-free providers that refuse sandboxes (Anixo) run
-                   with the attribute omitted entirely. */
-                sandbox={
-                  activeServer?.sandbox === null
-                    ? undefined
-                    : (activeServer?.sandbox ?? DEFAULT_IFRAME_SANDBOX)
-                }
+                /* No sandbox attribute: several embed players detect it and
+                   refuse to play ("sandbox detected"). Ad protection instead
+                   comes from auto-pilot ranking trusted ad-free servers
+                   first, with the ad-heavy ones as last-resort fallbacks. */
                 referrerPolicy="no-referrer"
                 className="h-full w-full border-0"
               />

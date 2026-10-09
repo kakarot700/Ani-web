@@ -7,11 +7,6 @@
 
 export type StreamLang = "sub" | "dub";
 
-/** Strict sandbox: the embed can run its player but cannot open popup
- *  tabs (no allow-popups) and cannot navigate/redirect our page
- *  (no allow-top-navigation). This is what kills the redirecting ads. */
-export const DEFAULT_IFRAME_SANDBOX = "allow-scripts allow-same-origin allow-forms";
-
 export interface StreamServer {
   id: string;
   label: string;
@@ -22,21 +17,35 @@ export interface StreamServer {
   /** Auto-pilot ranking: lower is tried first. Trusted ad-free providers are 0;
    *  everything else is 1. Within the same priority the fastest probe wins. */
   priority?: number;
-  /** Override the iframe sandbox for this server. `null` = no sandbox attribute
-   *  (some providers — e.g. Anixo — refuse to play when sandboxed). */
-  sandbox?: string | null;
+  /** Query param this provider accepts to start playback at N seconds.
+   *  Lets the watch page carry the playback position across server and
+   *  sub/dub switches (verified in each provider's docs). */
+  resumeKey?: string;
   build: (ids: { malId: number | null; aniListId: number | null }, ep: number | string, lang: StreamLang) => string | null;
+}
+
+/** Append the provider's resume-at-time param to an embed URL. */
+export function appendResume(
+  server: StreamServer,
+  url: string,
+  seconds: number
+): string {
+  if (!server.resumeKey || !Number.isFinite(seconds) || seconds < 5) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${server.resumeKey}=${Math.floor(seconds)}`;
 }
 
 export const STREAM_SERVERS: StreamServer[] = [
   // ── Trusted: ad-free / clean embeds (auto-pilot tries these first) ──
+  // Note: NO iframe sandbox is applied to any provider — several embed
+  // players detect sandboxed frames and refuse to play. Ad protection
+  // comes from ranking these trusted servers first instead.
   {
     id: "anixo",
     label: "Anixo",
     langs: ["sub", "dub"],
     signals: true,
     priority: 0,
-    sandbox: null, // Anixo refuses to play inside a sandboxed iframe
     build: ({ aniListId }, ep, lang) =>
       aniListId ? `https://anixo.buzz/embed/ani/${aniListId}/${ep}?track=${lang}` : null,
   },
@@ -46,7 +55,6 @@ export const STREAM_SERVERS: StreamServer[] = [
     langs: ["sub", "dub"],
     signals: true,
     priority: 0,
-    sandbox: null, // Anixo refuses to play inside a sandboxed iframe
     build: ({ malId }, ep, lang) =>
       malId ? `https://anixo.buzz/embed/mal/${malId}/${ep}?track=${lang}` : null,
   },
@@ -56,6 +64,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     langs: ["sub", "dub"],
     signals: true, // posts PLAYER_EVENT { play | pause | ended | timeupdate }
     priority: 0,
+    resumeKey: "startAt", // per docs: startAt=<seconds>
     build: ({ malId }, ep, lang) =>
       malId ? `https://vidlink.pro/anime/${malId}/${ep}/${lang}?fallback=true` : null,
   },
@@ -65,10 +74,21 @@ export const STREAM_SERVERS: StreamServer[] = [
     langs: ["sub", "dub"],
     signals: false,
     priority: 0,
+    resumeKey: "progress", // per docs: progress=<seconds>
     build: ({ aniListId }, ep, lang) =>
       aniListId
         ? `https://player.vidplus.to/embed/anime/${aniListId}/${ep}${lang === "dub" ? "?dub=true" : ""}`
         : null,
+  },
+  {
+    id: "vidy",
+    label: "Vidy",
+    langs: ["sub"],
+    signals: true, // posts PLAYER_EVENT { timeupdate | play | pause | ended }
+    priority: 0,
+    resumeKey: "progress", // per docs: progress=<seconds>
+    build: ({ aniListId }, ep) =>
+      aniListId ? `https://www.vidy.st/anime/${aniListId}/${ep}?nextEpisode=true` : null,
   },
 
   // ── AniList-keyed servers ──────────────────────────────────
@@ -89,14 +109,6 @@ export const STREAM_SERVERS: StreamServer[] = [
       aniListId
         ? `https://tryembed.us.cc/embed/anime/${aniListId}/${ep}/${lang}?autoNext=false`
         : null,
-  },
-  {
-    id: "vidy",
-    label: "Vidy",
-    langs: ["sub"],
-    signals: true,
-    build: ({ aniListId }, ep) =>
-      aniListId ? `https://www.vidy.st/anime/${aniListId}/${ep}?nextEpisode=true` : null,
   },
   {
     id: "megavid-ani",
