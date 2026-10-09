@@ -20,6 +20,7 @@ import ServerPicker from "@/components/ServerPicker";
 import { Card, GhostPill, GlassPill, IconBadge, InfoRow, LightSegmented, Segmented } from "@/components/ui";
 import useToasts from "@/lib/toast";
 import useUserList from "@/lib/userlist";
+import { stripHtml } from "@/utils/text";
 import {
   getEpisodeInfos,
   getRelatedShows,
@@ -398,6 +399,9 @@ export default function WatchAnime() {
         ? activeServer.label
         : "—";
 
+  /** Synopsis as plain text — cached responses may still hold raw HTML. */
+  const description = useMemo(() => stripHtml(show?.description), [show]);
+
   const floatBtn =
     "press flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white/90 ring-1 ring-white/15 backdrop-blur-xl transition hover:bg-black/75 hover:text-white";
 
@@ -617,7 +621,7 @@ export default function WatchAnime() {
               )}
             </Card>
 
-            {show?.description && (
+            {show && description && (
               <Card
                 title={show.name}
                 meta={`Episode ${ep} · ${lang.toUpperCase()}`}
@@ -630,8 +634,8 @@ export default function WatchAnime() {
                   <GhostPill onClick={() => navigate(`/anime/${id}`)}>Series page</GhostPill>
                 }
               >
-                <p className="line-clamp-3 text-[13.5px] leading-relaxed text-[var(--ink-soft)]">
-                  {show.description}
+                <p className="line-clamp-3 whitespace-pre-line text-[13.5px] leading-relaxed text-[var(--ink-soft)]">
+                  {description}
                 </p>
                 <div className="mt-3 border-t border-black/[0.07] pt-3">
                   <InfoRow label="Watched" value={`${watchedSet.size} of ${episodeList.length}`} />
@@ -729,7 +733,7 @@ export default function WatchAnime() {
                               {info?.title ?? `Episode ${n}`}
                             </span>
                             <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-[var(--ink-soft)]">
-                              {info?.description || "No synopsis available yet."}
+                              {stripHtml(info?.description) || "No synopsis available yet."}
                             </span>
                           </span>
                         </button>

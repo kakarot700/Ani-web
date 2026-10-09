@@ -25,6 +25,7 @@ import {
   SuccessChip,
 } from "@/components/ui";
 import useUserList from "@/lib/userlist";
+import { stripHtml } from "@/utils/text";
 import {
   getRecommendations,
   getRelatedShows,
@@ -107,6 +108,9 @@ export default function AnimeDetail() {
     () => (show ? getWatchProgress().find((p) => p.id === show._id) : undefined),
     [show]
   );
+
+  /** Synopsis as plain text — cached responses may still hold raw HTML. */
+  const description = useMemo(() => stripHtml(show?.description), [show]);
 
   const startWatching = useCallback(
     (ep: number, lang: StreamLang) => {
@@ -211,16 +215,16 @@ export default function AnimeDetail() {
                 ))}
               </div>
 
-              {show.description && (
+              {description && (
                 <p
-                  className={`mt-4 break-words text-[13.5px] leading-relaxed text-[var(--ink-soft)] ${
+                  className={`mt-4 whitespace-pre-line break-words text-[13.5px] leading-relaxed text-[var(--ink-soft)] ${
                     showAllSynopsis ? "" : "line-clamp-3"
                   }`}
                 >
-                  {show.description}
+                  {description}
                 </p>
               )}
-              {show.description && show.description.length > 260 && (
+              {description.length > 260 && (
                 <button
                   onClick={() => setShowAllSynopsis((c) => !c)}
                   className="mt-1.5 self-start text-[12.5px] font-semibold text-[var(--accent)] transition hover:underline"

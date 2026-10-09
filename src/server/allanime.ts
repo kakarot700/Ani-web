@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import useConnectivity from "@/lib/connectivity";
+import { stripHtml } from "@/utils/text";
 
 const ENDPOINT = "https://api.allanime.day/api";
 export const THUMB_BASE = "https://wp.youtube-anime.com/aln.youtube-anime.com/";
@@ -392,7 +393,7 @@ export function getShow(id: string): Promise<ShowDetail> {
         ...base,
         englishName: (s.englishName as string) ?? null,
         nativeName: (s.nativeName as string) ?? null,
-        description: (s.description as string) ?? null,
+        description: stripHtml(s.description as string) || null,
         banner: (s.banner as string) ?? null,
         genres: Array.isArray(s.genres) ? (s.genres as string[]) : [],
         studios: Array.isArray(s.studios) ? (s.studios as string[]) : [],
@@ -461,7 +462,7 @@ export function getEpisodeInfos(
         .map((e) => ({
           num: Number(e.episodeIdNum),
           title: typeof e.notes === "string" && e.notes ? e.notes : `Episode ${Number(e.episodeIdNum)}`,
-          description: typeof e.description === "string" ? e.description : "",
+          description: stripHtml(typeof e.description === "string" ? e.description : ""),
           thumbnail: resolveAsset(Array.isArray(e.thumbnails) ? (e.thumbnails[0] as string) : null),
         }));
     })
