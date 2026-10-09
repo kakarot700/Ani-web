@@ -206,8 +206,8 @@ const ServerPicker: React.FC<ServerPickerProps> = ({
 
       {!probing && healthy.length > 0 && (
         <p className="text-[11px] text-[var(--ink-faint)]">
-          {healthy.length} of {STREAM_SERVERS.length} servers healthy · Auto-pilot plays on the
-          fastest one and falls back by itself if it drops.
+          {healthy.length} of {STREAM_SERVERS.length} servers healthy · Auto-pilot prefers
+          ad-free trusted servers, then falls back by itself if one drops.
         </p>
       )}
     </div>

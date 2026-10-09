@@ -30,6 +30,7 @@ import {
   type ShowDetail,
 } from "@/server/allanime";
 import {
+  DEFAULT_IFRAME_SANDBOX,
   STREAM_SERVERS,
   getAutoNext,
   getPreferredServer,
@@ -302,7 +303,7 @@ export default function WatchAnime() {
   // is alive (feeds the watchdog), errors trigger failover, and
   // "ended"-family events drive auto-next.
   useEffect(() => {
-    const ENDED_EVENTS = new Set(["complete", "ended", "end", "episodeEnd"]);
+    const ENDED_EVENTS = new Set(["complete", "ended", "end", "episodeEnd", "aniembed:ended"]);
     const onMessage = (e: MessageEvent) => {
       let data = e.data as any;
       // Some players post JSON strings instead of objects
@@ -553,6 +554,16 @@ export default function WatchAnime() {
                 title={`${show?.name} - Episode ${ep} (${lang}) [${serverLabel}]`}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                /* Per-server sandbox: most embeds get the strict sandbox
+                   (no popup tabs, no hijacking our page) while trusted
+                   ad-free providers that refuse sandboxes (Anixo) run
+                   with the attribute omitted entirely. */
+                sandbox={
+                  activeServer?.sandbox === null
+                    ? undefined
+                    : (activeServer?.sandbox ?? DEFAULT_IFRAME_SANDBOX)
+                }
+                referrerPolicy="no-referrer"
                 className="h-full w-full border-0"
               />
             )}
@@ -591,7 +602,8 @@ export default function WatchAnime() {
               </GlassPill>
             </div>
             <p className="hidden text-[11.5px] text-white/45 sm:block">
-              Auto-pilot is on — it picks the best server, plays it, and falls back on its own.
+              Auto-pilot prefers ad-free trusted servers first, then the fastest response — and
+              falls back on its own.
             </p>
           </div>
         )}
@@ -601,7 +613,7 @@ export default function WatchAnime() {
           <div className="min-w-0 space-y-5">
             <Card
               title="Servers"
-              meta="Auto-pilot plays on the fastest healthy server — falls back on its own"
+              meta="Trusted ad-free servers first, then fastest — falls back on its own"
               badge={
                 <IconBadge tone="accent">
                   <BsLightningChargeFill size={14} />

@@ -7,6 +7,11 @@
 
 export type StreamLang = "sub" | "dub";
 
+/** Strict sandbox: the embed can run its player but cannot open popup
+ *  tabs (no allow-popups) and cannot navigate/redirect our page
+ *  (no allow-top-navigation). This is what kills the redirecting ads. */
+export const DEFAULT_IFRAME_SANDBOX = "allow-scripts allow-same-origin allow-forms";
+
 export interface StreamServer {
   id: string;
   label: string;
@@ -14,10 +19,130 @@ export interface StreamServer {
   /** True when the player posts postMessage playback events (time/complete/error).
    *  Auto-pilot uses this to detect silently-dead embeds via a watchdog timer. */
   signals: boolean;
+  /** Auto-pilot ranking: lower is tried first. Trusted ad-free providers are 0;
+   *  everything else is 1. Within the same priority the fastest probe wins. */
+  priority?: number;
+  /** Override the iframe sandbox for this server. `null` = no sandbox attribute
+   *  (some providers — e.g. Anixo — refuse to play when sandboxed). */
+  sandbox?: string | null;
   build: (ids: { malId: number | null; aniListId: number | null }, ep: number | string, lang: StreamLang) => string | null;
 }
 
 export const STREAM_SERVERS: StreamServer[] = [
+  // ── Trusted: ad-free / clean embeds (auto-pilot tries these first) ──
+  {
+    id: "anixo",
+    label: "Anixo",
+    langs: ["sub", "dub"],
+    signals: true,
+    priority: 0,
+    sandbox: null, // Anixo refuses to play inside a sandboxed iframe
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://anixo.buzz/embed/ani/${aniListId}/${ep}?track=${lang}` : null,
+  },
+  {
+    id: "anixo-mal",
+    label: "Anixo MAL",
+    langs: ["sub", "dub"],
+    signals: true,
+    priority: 0,
+    sandbox: null, // Anixo refuses to play inside a sandboxed iframe
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://anixo.buzz/embed/mal/${malId}/${ep}?track=${lang}` : null,
+  },
+  {
+    id: "vidlink",
+    label: "VidLink",
+    langs: ["sub", "dub"],
+    signals: true, // posts PLAYER_EVENT { play | pause | ended | timeupdate }
+    priority: 0,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://vidlink.pro/anime/${malId}/${ep}/${lang}?fallback=true` : null,
+  },
+  {
+    id: "vidplus",
+    label: "VidPlus",
+    langs: ["sub", "dub"],
+    signals: false,
+    priority: 0,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://player.vidplus.to/embed/anime/${aniListId}/${ep}${lang === "dub" ? "?dub=true" : ""}`
+        : null,
+  },
+
+  // ── AniList-keyed servers ──────────────────────────────────
+  {
+    id: "megaplay-ani",
+    label: "MegaPlay AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://megaplay.buzz/stream/ani/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "tryembed",
+    label: "TryEmbed",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://tryembed.us.cc/embed/anime/${aniListId}/${ep}/${lang}?autoNext=false`
+        : null,
+  },
+  {
+    id: "vidy",
+    label: "Vidy",
+    langs: ["sub"],
+    signals: true,
+    build: ({ aniListId }, ep) =>
+      aniListId ? `https://www.vidy.st/anime/${aniListId}/${ep}?nextEpisode=true` : null,
+  },
+  {
+    id: "megavid-ani",
+    label: "MegaVid AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://megavid.buzz/ani/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "zoko-ani",
+    label: "Zoko AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://zokoanime.video/stream/anilist/${aniListId}/${ep}/${lang}?autoplay=0`
+        : null,
+  },
+  {
+    id: "vidhawk-ani",
+    label: "VidHawk Zuri",
+    langs: ["sub", "dub"],
+    signals: true,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId
+        ? `https://vidhawk.buzz/embed/ani/${aniListId}/${ep}/${lang}?server=zuri`
+        : null,
+  },
+  {
+    id: "aniembed",
+    label: "AniEmbed",
+    langs: ["sub", "dub"],
+    signals: false,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://aniembed.se/e/${aniListId}/${ep}?lang=${lang}` : null,
+  },
+  {
+    id: "vidnest",
+    label: "VidNest",
+    langs: ["sub", "dub"],
+    signals: false,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
+  },
+
   // ── MAL-keyed servers ──────────────────────────────────────
   {
     id: "megaplay",
@@ -76,78 +201,6 @@ export const STREAM_SERVERS: StreamServer[] = [
     signals: false,
     build: ({ malId }, ep, lang) =>
       malId ? `https://babastream.top/embed/${malId}/${ep}/${lang}` : null,
-  },
-
-  // ── AniList-keyed servers ──────────────────────────────────
-  {
-    id: "megaplay-ani",
-    label: "MegaPlay AniList",
-    langs: ["sub", "dub"],
-    signals: true,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId ? `https://megaplay.buzz/stream/ani/${aniListId}/${ep}/${lang}` : null,
-  },
-  {
-    id: "megavid-ani",
-    label: "MegaVid AniList",
-    langs: ["sub", "dub"],
-    signals: true,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId ? `https://megavid.buzz/ani/${aniListId}/${ep}/${lang}` : null,
-  },
-  {
-    id: "zoko-ani",
-    label: "Zoko AniList",
-    langs: ["sub", "dub"],
-    signals: true,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId
-        ? `https://zokoanime.video/stream/anilist/${aniListId}/${ep}/${lang}?autoplay=0`
-        : null,
-  },
-  {
-    id: "vidhawk-ani",
-    label: "VidHawk Zuri",
-    langs: ["sub", "dub"],
-    signals: true,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId
-        ? `https://vidhawk.buzz/embed/ani/${aniListId}/${ep}/${lang}?server=zuri`
-        : null,
-  },
-  {
-    id: "tryembed",
-    label: "TryEmbed",
-    langs: ["sub", "dub"],
-    signals: true,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId
-        ? `https://tryembed.us.cc/embed/anime/${aniListId}/${ep}/${lang}?autoNext=false`
-        : null,
-  },
-  {
-    id: "aniembed",
-    label: "AniEmbed",
-    langs: ["sub", "dub"],
-    signals: false,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId ? `https://aniembed.se/e/${aniListId}/${ep}?lang=${lang}` : null,
-  },
-  {
-    id: "vidnest",
-    label: "VidNest",
-    langs: ["sub", "dub"],
-    signals: false,
-    build: ({ aniListId }, ep, lang) =>
-      aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
-  },
-  {
-    id: "vidy",
-    label: "Vidy",
-    langs: ["sub"],
-    signals: true,
-    build: ({ aniListId }, ep) =>
-      aniListId ? `https://www.vidy.st/anime/${aniListId}/${ep}?nextEpisode=true` : null,
   },
 ];
 
@@ -221,7 +274,9 @@ export function pingServer(
     .finally(() => window.clearTimeout(timer));
 }
 
-/** Probe all servers that support the language, ordered by latency. */
+/** Probe all servers that support the language, ordered by trust then latency.
+ *  Trusted (priority 0) providers always outrank the rest, so auto-pilot only
+ *  lands on the ad-heavy embeds when every clean one is down. */
 export async function probeServers(
   ids: { malId: number | null; aniListId: number | null },
   ep: number | string,
@@ -229,8 +284,13 @@ export async function probeServers(
 ): Promise<ServerHealth[]> {
   const candidates = STREAM_SERVERS.filter((s) => s.langs.includes(lang));
   const results = await Promise.all(candidates.map((s) => pingServer(s, ids, ep, lang)));
+  const priorityOf = (id: string) =>
+    STREAM_SERVERS.find((s) => s.id === id)?.priority ?? 1;
   return results.sort((a, b) => {
     if (a.ok !== b.ok) return a.ok ? -1 : 1;
+    const pa = priorityOf(a.id);
+    const pb = priorityOf(b.id);
+    if (pa !== pb) return pa - pb;
     return (a.latency ?? Infinity) - (b.latency ?? Infinity);
   });
 }

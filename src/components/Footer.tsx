@@ -11,7 +11,7 @@ const LINKS = [
   { label: "Stats", to: "/stats" },
 ];
 
-const NOTES = ["Catalog: AllAnime", "Players: MegaPlay · VidSrc · Videasy · Embed.su"];
+const NOTES = ["Catalog: AllAnime", "Players: Anixo · VidLink · VidPlus · MegaPlay · VidHawk + more"];
 
 /** Quiet footer: wordmark, one row of links, and the live status pill. */
 const Footer: React.FC = () => (
