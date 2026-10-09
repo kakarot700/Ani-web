@@ -180,16 +180,22 @@ export default function Home() {
     <>
       <Navbar />
 
-      <main className="mx-auto w-full max-w-[1400px] px-4 pb-32 pt-24 md:px-6 md:pb-24">
+      <main className="home-page-content mx-auto w-full max-w-[1400px] px-4 md:px-6">
         {/* ══════════════ the canvas — one centred column ══════════════ */}
         <div className="mx-auto max-w-[880px]">
           {/* ── hero ── */}
-          <section className="flex min-h-[calc(100svh-15rem)] flex-col justify-center text-center">
+          <section className="flex min-h-[calc(66svh-2rem)] flex-col justify-center text-center sm:min-h-[calc(72svh-4rem)] md:min-h-[calc(82svh-8rem)] lg:min-h-[calc(100svh-15rem)]">
             <p className="text-[13.5px] text-white/65">{greeting}</p>
             <h1 className="mx-auto mt-2.5 max-w-[16ch] text-[34px] font-semibold leading-[1.06] tracking-[-0.04em] text-white md:text-[46px]">
               What do you want to watch?
             </h1>
-            <Composer value={query} onChange={setQuery} onSubmit={submit} className="mt-8" />
+            <Composer
+              value={query}
+              onChange={setQuery}
+              onSubmit={submit}
+              placeholder="Search anime titles…"
+              className="mt-8"
+            />
 
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {quickFilters.map((c) => (

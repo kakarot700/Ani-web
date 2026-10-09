@@ -158,7 +158,7 @@ export default function AnimeDetail() {
     <>
       <Navbar />
 
-      <main className="mx-auto w-full max-w-[1180px] px-4 pb-24 pt-24 md:px-6">
+      <main className="page-content-compact mx-auto w-full max-w-[1180px] px-4 md:px-6">
         <button
           onClick={() => navigate(-1)}
           className="glass press mb-4 ml-1 inline-flex h-9 items-center gap-1.5 rounded-full pl-3 pr-4 text-[12.5px] font-medium text-white/80 transition hover:bg-white/20 hover:text-white"

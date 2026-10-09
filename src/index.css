@@ -52,6 +52,12 @@ html,
 body,
 #root {
   min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body {
+  min-width: 320px;
 }
 
 body {
@@ -357,6 +363,53 @@ video::cue {
   .lift:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-3);
+  }
+
+  /* Mobile viewport + safe-area spacing. The nav is fixed above the
+     device gesture area, and pages reserve room so the dock can't cover
+     the last interactive control. */
+  .app-top-safe-area {
+    padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  }
+  .mobile-dock-safe-area {
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  }
+  .page-content {
+    padding-top: calc(7rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+  .page-content-compact {
+    padding-top: calc(6rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+  .home-page-content {
+    padding-top: calc(6rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+  }
+  .site-footer-safe {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 768px) {
+    .app-top-safe-area {
+      padding-top: 1rem;
+    }
+    .page-content {
+      padding-top: 7rem;
+      padding-bottom: 6rem;
+    }
+    .page-content-compact {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+    .home-page-content {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+    .site-footer-safe {
+      padding-bottom: 3rem;
+    }
   }
 
   /* skip-to-content */

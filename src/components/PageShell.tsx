@@ -21,7 +21,7 @@ const PageShell: React.FC<{
   <>
     <Navbar />
     <main
-      className={`mx-auto w-full px-4 pb-24 pt-28 md:px-6 ${
+      className={`page-content mx-auto w-full px-4 md:px-6 ${
         width === "wide" ? "max-w-[1400px]" : "max-w-[1080px]"
       }`}
     >

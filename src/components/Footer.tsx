@@ -15,7 +15,7 @@ const NOTES = ["Catalog: AllAnime", "Players: MegaPlay · VidSrc · Videasy · E
 
 /** Quiet footer: wordmark, one row of links, and the live status pill. */
 const Footer: React.FC = () => (
-  <footer className="px-4 pb-28 md:px-6 md:pb-12">
+  <footer className="site-footer-safe px-4 md:px-6">
     <div className="mx-auto max-w-[1400px] border-t border-white/12 pt-8">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div>
