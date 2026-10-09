@@ -494,10 +494,18 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
           <button onClick={togglePlay} aria-label="Play or pause" className={menuBtn}>
             {playing ? <BsFillPauseFill size={22} /> : <BsFillPlayFill size={22} />}
           </button>
-          <button onClick={() => seekBy(-10)} aria-label="Back 10 seconds" className={menuBtn}>
+          <button
+            onClick={() => seekBy(-10)}
+            aria-label="Back 10 seconds"
+            className={`${menuBtn} max-[419px]:hidden`}
+          >
             <BsArrowCounterclockwise size={17} />
           </button>
-          <button onClick={() => seekBy(10)} aria-label="Forward 10 seconds" className={menuBtn}>
+          <button
+            onClick={() => seekBy(10)}
+            aria-label="Forward 10 seconds"
+            className={`${menuBtn} max-[419px]:hidden`}
+          >
             <BsArrowClockwise size={17} />
           </button>
 
@@ -518,11 +526,11 @@ const OtakuPlayer: React.FC<OtakuPlayerProps> = ({
             />
           </div>
 
-          <span className="ml-1 text-xs font-medium tabular-nums text-white/80">
+          <span className="ml-1 text-[11px] font-medium tabular-nums text-white/80 sm:text-xs">
             {formatTime(current)} <span className="text-white/45">/</span> {formatTime(duration)}
           </span>
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
             {/* subtitles menu */}
             {ccAvailable && (
               <div className="relative">

@@ -5,7 +5,7 @@ import PageShell from "@/components/PageShell";
 import { BlackPill, Card, EmptyState, IconBadge, Panel, PosterSkeleton, Segmented } from "@/components/ui";
 import { BsBookmarkHeartFill, BsCheckLg, BsClock, BsFillPlayFill, BsGraphUpArrow } from "react-icons/bs";
 import { getShow, type ShowSummary } from "@/server/allanime";
-import useUserList, { STATUS_META, type ListStatus } from "@/lib/userlist";
+import useUserList, { STATUS_META, getEntry, listIds, type ListStatus } from "@/lib/userlist";
 
 type Tab = "all" | ListStatus;
 
@@ -24,10 +24,7 @@ export default function MyListPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [shows, setShows] = useState<Map<string, ShowSummary>>(new Map());
 
-  const listedIds = useMemo(
-    () => Object.keys(entries).filter((id) => id.startsWith("al:")).map((id) => id.slice(3)),
-    [entries]
-  );
+  const listedIds = useMemo(() => listIds(entries), [entries]);
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +62,7 @@ export default function MyListPage() {
   const filtered = useMemo(
     () =>
       listedIds.filter((id) => {
-        const status = entries[`al:${id}`]?.status ?? null;
+        const status = getEntry(entries, id)?.status ?? null;
         return tab === "all" ? status !== null : status === tab;
       }),
     [listedIds, entries, tab]
@@ -79,7 +76,7 @@ export default function MyListPage() {
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: listedIds.length };
     for (const id of listedIds) {
-      const s = entries[`al:${id}`]?.status;
+      const s = getEntry(entries, id)?.status;
       if (s) c[s] = (c[s] ?? 0) + 1;
     }
     return c;
@@ -121,7 +118,7 @@ export default function MyListPage() {
       </section>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <div className="no-scrollbar min-w-0 max-w-full overflow-x-auto">
+        <div className="no-scrollbar min-w-0 max-w-full overflow-x-auto [mask-image:linear-gradient(to_right,black_88%,transparent)]">
           <Segmented
             className="w-max"
             segments={TABS}
@@ -150,7 +147,7 @@ export default function MyListPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((id) => {
             const s = shows.get(id);
-            const entry = entries[`al:${id}`];
+            const entry = getEntry(entries, id);
             if (!s) return <PosterSkeleton key={id} />;
             return (
               <div key={id} className="relative">

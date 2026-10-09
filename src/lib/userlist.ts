@@ -31,6 +31,13 @@ interface UserListStore {
   clearWatched: (id: string) => void;
 }
 
+/** Merge two entries that point at the same title (legacy + canonical key). */
+const mergeEntry = (a: ListEntry, b: ListEntry): ListEntry => ({
+  status: a.status ?? b.status,
+  rating: a.rating ?? b.rating,
+  addedAt: Math.min(a.addedAt || Date.now(), b.addedAt || Date.now()),
+});
+
 const useUserList = create<UserListStore>()(
   persist(
     (set) => ({
@@ -85,8 +92,40 @@ const useUserList = create<UserListStore>()(
           return { watched };
         }),
     }),
-    { name: "otaku-userlist" }
+    {
+      name: "otaku-userlist",
+      // v1 — older builds persisted list entries under an AniList-style
+      // "al:<id>" prefix while every writer (TrackingPanel) stores the raw
+      // catalog id, so My List / Stats never saw them. Normalise on load so
+      // already-saved data (in either shape) becomes visible again.
+      version: 1,
+      migrate: (persisted) => {
+        const state = (persisted ?? {}) as Partial<UserListStore>;
+        const entries: Record<string, ListEntry> = {};
+        for (const [key, value] of Object.entries(state.entries ?? {})) {
+          if (!value) continue;
+          const id = key.startsWith("al:") ? key.slice(3) : key;
+          entries[id] = entries[id] ? mergeEntry(entries[id], value) : value;
+        }
+        return { ...state, entries };
+      },
+    }
   )
 );
+
+/** Canonical ids of every tracked title — tolerant of the legacy "al:" prefix. */
+export const listIds = (entries: Record<string, ListEntry>): string[] => {
+  const ids = new Set<string>();
+  for (const key of Object.keys(entries)) {
+    ids.add(key.startsWith("al:") ? key.slice(3) : key);
+  }
+  return [...ids];
+};
+
+/** Entry lookup that also finds legacy "al:"-prefixed keys. */
+export const getEntry = (
+  entries: Record<string, ListEntry>,
+  id: string
+): ListEntry | undefined => entries[id] ?? entries[`al:${id}`];
 
 export default useUserList;

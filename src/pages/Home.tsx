@@ -327,7 +327,7 @@ export default function Home() {
                 }
                 className="rise"
               >
-                <div className="flex items-end justify-center py-5">
+                <div className="flex items-end justify-center overflow-x-clip py-5 px-2">
                   {trending.slice(0, 3).map((s, i) => (
                     <Link
                       key={s._id}
@@ -335,14 +335,14 @@ export default function Home() {
                       className="group relative shrink-0 transition-transform duration-500 ease-out hover:z-30 hover:-translate-y-3"
                       style={{
                         transform: `rotate(${[-7, 0, 7][i]}deg)`,
-                        marginLeft: i ? -30 : 0,
+                        marginLeft: i ? -22 : 0,
                         zIndex: i === 1 ? 20 : 10,
                       }}
                     >
                       <Img
                         src={s.thumbnail}
                         alt={s.name}
-                        className="h-[188px] w-[133px] rounded-[18px] shadow-[0_18px_44px_-18px_rgba(10,12,24,0.8)] ring-1 ring-black/10"
+                        className="h-[148px] w-[105px] rounded-[14px] shadow-[0_18px_44px_-18px_rgba(10,12,24,0.8)] ring-1 ring-black/10 sm:h-[188px] sm:w-[133px] sm:rounded-[18px]"
                       />
                       <span className="absolute -left-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#16181f] text-[11px] font-bold text-white shadow-lg">
                         {i + 1}

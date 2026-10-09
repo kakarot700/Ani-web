@@ -6,7 +6,7 @@ import CountUp from "@/components/CountUp";
 import PageShell from "@/components/PageShell";
 import { Card, EmptyState, IconBadge, InfoRow, Panel } from "@/components/ui";
 import { getShow, type ShowSummary } from "@/server/allanime";
-import useUserList, { STATUS_META, type ListStatus } from "@/lib/userlist";
+import useUserList, { STATUS_META, getEntry, listIds, type ListStatus } from "@/lib/userlist";
 import { buildContext } from "@/lib/achievements";
 
 const STATUS_COLORS: Record<ListStatus, string> = {
@@ -28,10 +28,7 @@ export default function StatsPage() {
 
   const [shows, setShows] = useState<Map<string, EnrichedShow>>(new Map());
 
-  const listedIds = useMemo(
-    () => Object.keys(entries).filter((k) => k.startsWith("al:")).map((k) => k.slice(3)),
-    [entries]
-  );
+  const listedIds = useMemo(() => listIds(entries), [entries]);
 
   useEffect(() => {
     let alive = true;
@@ -82,7 +79,7 @@ export default function StatsPage() {
     const topRated: { show: EnrichedShow; rating: number }[] = [];
 
     for (const id of listedIds) {
-      const entry = entries[`al:${id}`];
+      const entry = getEntry(entries, id);
       if (!entry || !entry.status) continue;
       statusCount[entry.status] += 1;
       if (typeof entry.rating === "number") {
@@ -95,7 +92,7 @@ export default function StatsPage() {
       show?.genres.slice(0, 3).forEach((g) => genreCount.set(g, (genreCount.get(g) ?? 0) + 1));
     }
 
-    const totalTitles = listedIds.filter((id) => entries[`al:${id}`]?.status).length;
+    const totalTitles = listedIds.filter((id) => getEntry(entries, id)?.status).length;
     const genres = [...genreCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
     const maxGenre = genres.length ? genres[0][1] : 1;
 

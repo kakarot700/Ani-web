@@ -25,6 +25,7 @@ import {
   SuccessChip,
 } from "@/components/ui";
 import useUserList from "@/lib/userlist";
+import { stripHtml } from "@/utils/text";
 import {
   getRecommendations,
   getRelatedShows,
@@ -108,6 +109,9 @@ export default function AnimeDetail() {
     [show]
   );
 
+  /** Synopsis as plain text — cached responses may still hold raw HTML. */
+  const description = useMemo(() => stripHtml(show?.description), [show]);
+
   const startWatching = useCallback(
     (ep: number, lang: StreamLang) => {
       navigate(`/watch/${show?._id}/${ep}?lang=${lang}`);
@@ -171,11 +175,11 @@ export default function AnimeDetail() {
         <section className="card-light rise overflow-hidden rounded-[26px] p-5 md:p-7">
           <div className="flex flex-col gap-6 md:flex-row">
             {show.thumbnail && (
-              <div className="relative w-full shrink-0 md:w-[232px]">
+              <div className="relative mx-auto w-[176px] shrink-0 md:mx-0 md:w-[232px]">
                 <img
                   src={show.thumbnail}
                   alt={show.name}
-                  className="h-[210px] w-full rounded-[20px] object-cover shadow-[0_20px_50px_-22px_rgba(10,12,24,0.7)] ring-1 ring-black/10 md:h-[330px]"
+                  className="aspect-[2/3] w-full rounded-[20px] object-cover shadow-[0_20px_50px_-22px_rgba(10,12,24,0.7)] ring-1 ring-black/10 md:aspect-auto md:h-[330px]"
                 />
                 {typeof show.score === "number" && show.score > 0 && (
                   <span className="tnum absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-[11.5px] font-semibold text-white backdrop-blur-md">
@@ -211,16 +215,16 @@ export default function AnimeDetail() {
                 ))}
               </div>
 
-              {show.description && (
+              {description && (
                 <p
-                  className={`mt-4 break-words text-[13.5px] leading-relaxed text-[var(--ink-soft)] ${
+                  className={`mt-4 whitespace-pre-line break-words text-[13.5px] leading-relaxed text-[var(--ink-soft)] ${
                     showAllSynopsis ? "" : "line-clamp-3"
                   }`}
                 >
-                  {show.description}
+                  {description}
                 </p>
               )}
-              {show.description && show.description.length > 260 && (
+              {description.length > 260 && (
                 <button
                   onClick={() => setShowAllSynopsis((c) => !c)}
                   className="mt-1.5 self-start text-[12.5px] font-semibold text-[var(--accent)] transition hover:underline"

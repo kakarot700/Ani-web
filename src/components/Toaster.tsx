@@ -8,7 +8,7 @@ const Toaster: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-6 left-1/2 z-[90] flex w-[92vw] max-w-sm -translate-x-1/2 flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-24 left-1/2 z-[90] flex w-[92vw] max-w-sm -translate-x-1/2 flex-col gap-2 md:bottom-6">
       {toasts.map((t) => (
         <button
           key={t.id}
