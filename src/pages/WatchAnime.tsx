@@ -35,6 +35,7 @@ import {
   getAutoNext,
   getPreferredServer,
   getServer,
+  recordStartupResult,
   saveAutoNext,
   savePreferredServer,
   type ServerHealth,
@@ -68,6 +69,7 @@ export default function WatchAnime() {
   const attemptedRef = useRef<Set<string>>(new Set()); // servers already failed this episode
   const lastSwitchRef = useRef(0); // guards against stale iframe signals
   const gotSignalRef = useRef(false); // watchdog: player proved it's alive
+  const mountedAtRef = useRef(0); // when the current iframe was mounted (startup timing)
 
   // ── playback-position carry-over ───────────────────────────
   // The live position reported by the embed's postMessage timeupdate
@@ -306,10 +308,29 @@ export default function WatchAnime() {
         }
         return;
       }
-      if (candidates.some((c) => c.id === current)) return; // still healthy — keep playing
+      if (candidates.some((c) => c.id === current)) {
+        // Still healthy — but if we're riding an ad-supported fallback and
+        // a trusted ad-free server has recovered, switch back to it
+        // (carrying the playback position). Runs at most once per probe.
+        const curTier = getServer(current).priority ?? 1;
+        if (curTier > 0) {
+          const upgrade = candidates.find(
+            (c) =>
+              (getServer(c.id).priority ?? 1) === 0 && !attemptedRef.current.has(c.id)
+          );
+          if (upgrade) {
+            holdPosition();
+            gotSignalRef.current = false;
+            lastSwitchRef.current = Date.now();
+            setAutoPick(upgrade.id);
+            push(`Back on ad-free ${getServer(upgrade.id).label}`, "info");
+          }
+        }
+        return;
+      }
       advanceAuto(`${getServer(current).label} went down`);
     },
-    [advanceAuto]
+    [advanceAuto, holdPosition, push]
   );
 
   /** User-facing mode switch: "auto" or a specific server id. */
@@ -350,15 +371,18 @@ export default function WatchAnime() {
   }, [ep, lang, id]);
 
   // Watchdog: players that post events must prove they're alive within
-  // 12s of loading, otherwise auto-pilot assumes a silent failure and
+  // 8s of loading, otherwise auto-pilot assumes a silent failure,
+  // records it against the server (future episodes rank it lower), and
   // falls back to the next server. Only for event-posting servers.
   useEffect(() => {
     if (mode !== "auto" || !autoPick) return;
     if (!getServer(autoPick).signals) return;
     const t = window.setTimeout(() => {
-      if (!gotSignalRef.current)
+      if (!gotSignalRef.current) {
+        recordStartupResult(autoPick, null); // silent failure — hurts its ranking
         advanceAuto(`${getServer(autoPick).label} gave no response`);
-    }, 12000);
+      }
+    }, 8000);
     return () => window.clearTimeout(t);
   }, [mode, autoPick, ep, lang, advanceAuto]);
 
@@ -386,7 +410,17 @@ export default function WatchAnime() {
         (inner.event === "player" && typeof inner.player === "string" && ENDED_EVENTS.has(inner.player));
       const isError = inner.event === "error" || inner.type === "error" || inner.event === "play_error";
 
+      const live = liveRef.current;
+      const activeId = live.mode === "auto" ? live.autoPick : live.mode;
+
+      // First signal from this embed = the player actually booted.
+      // Record how long it took so auto-pilot learns real startup speed
+      // (probe latency alone can't see slow players or ad walls).
+      const wasSilent = !gotSignalRef.current;
       gotSignalRef.current = true; // the player is alive
+      if (wasSilent && activeId && mountedAtRef.current) {
+        recordStartupResult(activeId, Date.now() - mountedAtRef.current);
+      }
 
       // Track the live playback position so a later server or sub/dub
       // switch can resume exactly where the viewer is. VidLink/Vidy send
@@ -406,8 +440,8 @@ export default function WatchAnime() {
         positionRef.current = maybeT;
       }
 
-      const live = liveRef.current;
       if (isError) {
+        if (activeId) recordStartupResult(activeId, null); // boot ok, stream failed
         if (live.mode === "auto") {
           advanceAuto(
             `${live.autoPick ? getServer(live.autoPick).label : "Server"} hit a playback error`
@@ -474,6 +508,14 @@ export default function WatchAnime() {
     // resume param restart — unavoidable for cross-origin embeds).
     return resumeSeconds > 5 ? appendResume(activeServer, base, resumeSeconds) : base;
   }, [show, activeServer, ids, ep, lang, resumeSeconds]);
+
+  // Startup clock: every fresh embed starts the timer; the first
+  // postMessage from the player stops it and feeds the per-server
+  // startup stats that auto-pilot ranks by.
+  useEffect(() => {
+    if (!embedUrl) return;
+    mountedAtRef.current = Date.now();
+  }, [embedUrl]);
   const serverLabel =
     mode === "auto"
       ? activeServer
@@ -697,7 +739,7 @@ export default function WatchAnime() {
           <div className="min-w-0 space-y-5">
             <Card
               title="Servers"
-              meta="Trusted ad-free servers first, then fastest — falls back on its own"
+              meta="Ad-free servers first · learns what starts fastest for you"
               badge={
                 <IconBadge tone="accent">
                   <BsLightningChargeFill size={14} />

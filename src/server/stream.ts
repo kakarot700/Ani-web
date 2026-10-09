@@ -35,6 +35,85 @@ export function appendResume(
   return `${url}${sep}${server.resumeKey}=${Math.floor(seconds)}`;
 }
 
+// ── Learned startup performance ──────────────────────────────
+// A network probe only proves a host answers — not that its player
+// actually boots (some respond instantly yet take 20s+ to start
+// playback, or serve an ad page instead of a player). So we measure
+// the REAL startup: iframe mounted → first postMessage signal. Each
+// server keeps an exponential moving average of that time plus a
+// count of recent silent failures, and ranking uses both. Data lives
+// in localStorage, so the selector keeps getting smarter per device.
+export interface StartupStat {
+  /** EMA of measured boot time in ms (null = no successful boot yet). */
+  ema: number | null;
+  /** Successful boots observed. */
+  samples: number;
+  /** Recent failures: watchdog timeouts / playback errors. */
+  fails: number;
+  /** Timestamp of the most recent failure (drives the penalty decay). */
+  lastFail: number;
+}
+
+const STARTUP_KEY = "otaku-server-startup-v1";
+const EMA_ALPHA = 0.4;
+const FAIL_PENALTY_MS = 20000;
+const FAIL_DECAY_MS = 30 * 60 * 1000; // a failure stops counting after 30 min
+
+function readStartupStats(): Record<string, StartupStat> {
+  try {
+    const raw = localStorage.getItem(STARTUP_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, StartupStat>) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStartupStats(stats: Record<string, StartupStat>): void {
+  try {
+    localStorage.setItem(STARTUP_KEY, JSON.stringify(stats));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getStartupStat(id: string): StartupStat {
+  return (
+    readStartupStats()[id] ?? { ema: null, samples: 0, fails: 0, lastFail: 0 }
+  );
+}
+
+/**
+ * Record a startup outcome for a server.
+ * @param ms time from iframe mount to first player signal, or null when
+ *        the player never signalled (watchdog timeout / playback error).
+ */
+export function recordStartupResult(id: string, ms: number | null): void {
+  if (!id) return;
+  const stats = readStartupStats();
+  const s = stats[id] ?? { ema: null, samples: 0, fails: 0, lastFail: 0 };
+  if (ms === null) {
+    s.fails = Math.min(9, s.fails + 1);
+    s.lastFail = Date.now();
+  } else {
+    s.fails = 0;
+    s.samples += 1;
+    s.ema = s.ema === null ? ms : Math.round(s.ema * (1 - EMA_ALPHA) + ms * EMA_ALPHA);
+  }
+  stats[id] = s;
+  writeStartupStats(stats);
+}
+
+/** Ranking cost in "ms-equivalents": probe latency + learned penalties. */
+export function serverCost(id: string, probeLatency: number | null): number {
+  const st = getStartupStat(id);
+  const emaPenalty = st.ema ?? 0;
+  const age = Date.now() - (st.lastFail || 0);
+  const decay = Math.max(0, 1 - age / FAIL_DECAY_MS);
+  const failPenalty = st.fails * FAIL_PENALTY_MS * decay;
+  return (probeLatency ?? 9999) + emaPenalty + failPenalty;
+}
+
 export const STREAM_SERVERS: StreamServer[] = [
   // ── Trusted: ad-free / clean embeds (auto-pilot tries these first) ──
   // Note: NO iframe sandbox is applied to any provider — several embed
@@ -91,6 +170,8 @@ export const STREAM_SERVERS: StreamServer[] = [
       aniListId ? `https://www.vidy.st/anime/${aniListId}/${ep}?nextEpisode=true` : null,
   },
 
+  // ── Tier 1: ad-supported fallbacks (only when tier 0 is down) ──
+
   // ── AniList-keyed servers ──────────────────────────────────
   {
     id: "megaplay-ani",
@@ -123,6 +204,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     label: "Zoko AniList",
     langs: ["sub", "dub"],
     signals: true,
+    priority: 2,
     build: ({ aniListId }, ep, lang) =>
       aniListId
         ? `https://zokoanime.video/stream/anilist/${aniListId}/${ep}/${lang}?autoplay=0`
@@ -143,6 +225,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     label: "AniEmbed",
     langs: ["sub", "dub"],
     signals: false,
+    priority: 2,
     build: ({ aniListId }, ep, lang) =>
       aniListId ? `https://aniembed.se/e/${aniListId}/${ep}?lang=${lang}` : null,
   },
@@ -151,6 +234,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     label: "VidNest",
     langs: ["sub", "dub"],
     signals: false,
+    priority: 2,
     build: ({ aniListId }, ep, lang) =>
       aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
   },
@@ -177,6 +261,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     label: "MegaPlay Mirror",
     langs: ["sub", "dub"],
     signals: true,
+    priority: 2,
     build: ({ malId }, ep, lang) =>
       malId ? `https://ani.megaplay.su/mal/${malId}/${ep}/${lang}` : null,
   },
@@ -185,6 +270,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     label: "Zokoanime",
     langs: ["sub", "dub"],
     signals: true,
+    priority: 2,
     build: ({ malId }, ep, lang) =>
       malId ? `https://zokoanime.video/stream/mal/${malId}/${ep}/${lang}?autoplay=0` : null,
   },
@@ -211,6 +297,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     label: "BabaStream",
     langs: ["sub", "dub"],
     signals: false,
+    priority: 2,
     build: ({ malId }, ep, lang) =>
       malId ? `https://babastream.top/embed/${malId}/${ep}/${lang}` : null,
   },
@@ -286,9 +373,12 @@ export function pingServer(
     .finally(() => window.clearTimeout(timer));
 }
 
-/** Probe all servers that support the language, ordered by trust then latency.
- *  Trusted (priority 0) providers always outrank the rest, so auto-pilot only
- *  lands on the ad-heavy embeds when every clean one is down. */
+/** Probe all servers that support the language, ordered by:
+ *  1. reachability (ok first)
+ *  2. trust tier (0 = ad-free trusted, 1 = ad-supported, 2 = last resort)
+ *  3. learned cost — probe latency + measured startup time + recent
+ *     failures. Slow starters (e.g. a server whose player drags for
+ *     20s) sink within their tier automatically, per device. */
 export async function probeServers(
   ids: { malId: number | null; aniListId: number | null },
   ep: number | string,
@@ -296,14 +386,14 @@ export async function probeServers(
 ): Promise<ServerHealth[]> {
   const candidates = STREAM_SERVERS.filter((s) => s.langs.includes(lang));
   const results = await Promise.all(candidates.map((s) => pingServer(s, ids, ep, lang)));
-  const priorityOf = (id: string) =>
-    STREAM_SERVERS.find((s) => s.id === id)?.priority ?? 1;
+  const tierOf = (id: string) => STREAM_SERVERS.find((s) => s.id === id)?.priority ?? 1;
+  const costOf = (r: ServerHealth) => serverCost(r.id, r.latency);
   return results.sort((a, b) => {
     if (a.ok !== b.ok) return a.ok ? -1 : 1;
-    const pa = priorityOf(a.id);
-    const pb = priorityOf(b.id);
-    if (pa !== pb) return pa - pb;
-    return (a.latency ?? Infinity) - (b.latency ?? Infinity);
+    const ta = tierOf(a.id);
+    const tb = tierOf(b.id);
+    if (ta !== tb) return ta - tb;
+    return costOf(a) - costOf(b);
   });
 }
 
