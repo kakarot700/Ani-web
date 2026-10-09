@@ -48,7 +48,7 @@ const check = (name, cond, extra = "") => {
 };
 
 console.log("── registry integrity ──");
-check("19 servers", STREAM_SERVERS.length === 19, `got ${STREAM_SERVERS.length}`);
+check("24 servers", STREAM_SERVERS.length === 24, `got ${STREAM_SERVERS.length}`);
 check("unique ids", new Set(STREAM_SERVERS.map((s) => s.id)).size === STREAM_SERVERS.length);
 check("no sandbox anywhere (providers detect and refuse it)",
   STREAM_SERVERS.every((s) => s.sandbox === undefined));
@@ -63,10 +63,18 @@ check(
 check(
   "tier 2 (last resort) = mirrors/zoko/baba/aniembed/vidnest",
   JSON.stringify(tier(2)) ===
-    JSON.stringify(["aniembed", "babastream", "megaplay-mirror", "vidnest", "zoko", "zoko-ani"]),
+    JSON.stringify(["aniembed", "animeplay", "animeplay-ani", "babastream", "megaplay-mirror", "vidnest", "zoko", "zoko-ani"]),
   JSON.stringify(tier(2))
 );
-check("tier 1 = everything else (8 ad-supported fallbacks)", tier(1).length === 8, JSON.stringify(tier(1)));
+check(
+  "tier 2 includes new animeplay mirrors",
+  ["animeplay", "animeplay-ani"].every((id) => tier(2).includes(id)),
+  JSON.stringify(tier(2))
+);
+check("tier 1 includes supaplay + vidsrc",
+  ["supaplay", "supaplay-mal", "vidsrc"].every((id) => tier(1).includes(id)),
+  JSON.stringify(tier(1))
+);
 
 console.log("── learned startup stats ──");
 recordStartupResult("vidlink", 900);
@@ -140,6 +148,18 @@ check("vidlink dub", getServer("vidlink").build(ids, 4, "dub") === "https://vidl
 check("vidplus dub → ?dub=true",
   getServer("vidplus").build(ids, 1, "dub") === "https://player.vidplus.to/embed/anime/1/1?dub=true");
 check("vidy sub-only", getServer("vidy").build(ids, 1, "sub") === "https://www.vidy.st/anime/1/1?nextEpisode=true");
+check("supaplay → /stream/ani/{al}/{ep}/{lang}",
+  getServer("supaplay").build(ids, 2, "sub") === "https://supaplay.fun/stream/ani/1/2/sub");
+check("supaplay-mal MAL route",
+  getServer("supaplay-mal").build(ids, 1, "dub") === "https://supaplay.fun/stream/ani/21/1/dub");
+check("vidsrc → /v2/embed/anime/{al}/{ep}/{lang} (per docs example)",
+  getServer("vidsrc").build(ids, 2, "sub") === "https://vidsrc.cc/v2/embed/anime/1/2/sub");
+check("animeplay mirrors",
+  getServer("animeplay").build(ids, 1, "sub") === "https://animeplay.cfd/stream/mal/21/1/sub" &&
+  getServer("animeplay-ani").build(ids, 1, "dub") === "https://animeplay.cfd/stream/ani/1/1/dub");
+check("aniembed resume appends t=",
+  appendResume(getServer("aniembed"), "https://aniembed.se/e/1/1?lang=sub", 300) ===
+    "https://aniembed.se/e/1/1?lang=sub&t=300");
 const noIds = { malId: null, aniListId: null };
 check("null-id guards", STREAM_SERVERS.every((s) => s.build(noIds, 1, "sub") === null));
 check("legacy megaplay unchanged",

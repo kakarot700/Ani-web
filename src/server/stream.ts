@@ -174,6 +174,33 @@ export const STREAM_SERVERS: StreamServer[] = [
 
   // ── AniList-keyed servers ──────────────────────────────────
   {
+    id: "supaplay",
+    label: "SupaPlay",
+    langs: ["sub", "dub"],
+    signals: false,
+    priority: 1,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://supaplay.fun/stream/ani/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "supaplay-mal",
+    label: "SupaPlay MAL",
+    langs: ["sub", "dub"],
+    signals: false,
+    priority: 1,
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://supaplay.fun/stream/ani/${malId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "vidsrc",
+    label: "VidSrc",
+    langs: ["sub", "dub"],
+    signals: false,
+    priority: 1,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://vidsrc.cc/v2/embed/anime/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
     id: "megaplay-ani",
     label: "MegaPlay AniList",
     langs: ["sub", "dub"],
@@ -226,6 +253,7 @@ export const STREAM_SERVERS: StreamServer[] = [
     langs: ["sub", "dub"],
     signals: false,
     priority: 2,
+    resumeKey: "t", // per docs: ?lang=sub|dub&autoplay=0|1&t={seconds}
     build: ({ aniListId }, ep, lang) =>
       aniListId ? `https://aniembed.se/e/${aniListId}/${ep}?lang=${lang}` : null,
   },
@@ -237,6 +265,24 @@ export const STREAM_SERVERS: StreamServer[] = [
     priority: 2,
     build: ({ aniListId }, ep, lang) =>
       aniListId ? `https://vidnest.fun/anime/${aniListId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "animeplay",
+    label: "AnimePlay",
+    langs: ["sub", "dub"],
+    signals: true,
+    priority: 2, // MegaPlay player on a third domain — deep fallback
+    build: ({ malId }, ep, lang) =>
+      malId ? `https://animeplay.cfd/stream/mal/${malId}/${ep}/${lang}` : null,
+  },
+  {
+    id: "animeplay-ani",
+    label: "AnimePlay AniList",
+    langs: ["sub", "dub"],
+    signals: true,
+    priority: 2,
+    build: ({ aniListId }, ep, lang) =>
+      aniListId ? `https://animeplay.cfd/stream/ani/${aniListId}/${ep}/${lang}` : null,
   },
 
   // ── MAL-keyed servers ──────────────────────────────────────

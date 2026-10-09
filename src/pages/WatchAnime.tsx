@@ -77,6 +77,11 @@ export default function WatchAnime() {
   // auto failover, manual server pin, or a sub ↔ dub switch.
   const positionRef = useRef(0);
   const [resumeSeconds, setResumeSeconds] = useState(0);
+  // Mid-playback stall tracking: did the player report "play", when did
+  // playback last move forward, and did the episode already finish?
+  const playingRef = useRef(false);
+  const endedRef = useRef(false);
+  const lastProgressAtRef = useRef(0);
   // True only when the USER toggled sub/dub — lets the lang-mismatch
   // effect distinguish "user asked for a track the pinned server lacks"
   // (switch servers) from "user pinned a server that lacks the current
@@ -426,6 +431,9 @@ export default function WatchAnime() {
       // switch can resume exactly where the viewer is. VidLink/Vidy send
       // PLAYER_EVENT timeupdate, Anixo sends aniembed:timeupdate.
       const maybeT = (inner as { currentTime?: unknown }).currentTime ?? data.currentTime;
+      const evName = typeof inner.event === "string" ? inner.event : inner.type;
+      const isPlay = evName === "play" || evName === "aniembed:play";
+      const isPause = evName === "pause" || evName === "aniembed:pause";
       const isTimeUpdate =
         inner.event === "timeupdate" ||
         inner.event === "seeked" ||
@@ -438,7 +446,16 @@ export default function WatchAnime() {
         maybeT > 0
       ) {
         positionRef.current = maybeT;
+        // playback is moving — the stream is alive (stall detector relies on this)
+        playingRef.current = true;
+        lastProgressAtRef.current = Date.now();
       }
+      if (isPlay) {
+        playingRef.current = true;
+        lastProgressAtRef.current = Date.now();
+      }
+      if (isPause) playingRef.current = false;
+      if (isEnded) endedRef.current = true;
 
       if (isError) {
         if (activeId) recordStartupResult(activeId, null); // boot ok, stream failed
@@ -464,6 +481,59 @@ export default function WatchAnime() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [advanceAuto, adoptManual, setEp]);
+
+  // ── mid-playback stall detector ─────────────────────────────
+  // A stream can boot fine, play for a while, and then silently freeze
+  // (dead CDN link, expired token). Players that post events keep them
+  // coming while playing — so if "play" was reported and no progress
+  // has been seen for 20s (and the episode didn't just end), treat the
+  // server as dead and fail over to the next best by tier, carrying
+  // the playback position. Paused players never trigger this because
+  // "pause" flips the playing flag off.
+  useEffect(() => {
+    const STALL_MS = 20000;
+    const CHECK_MS = 5000;
+    const iv = window.setInterval(() => {
+      const live = liveRef.current;
+      const stalledId = live.mode === "auto" ? live.autoPick : live.mode;
+      if (!stalledId) return;
+      if (endedRef.current || !playingRef.current) return;
+      if (Date.now() - lastProgressAtRef.current < STALL_MS) return;
+      if (Date.now() - lastSwitchRef.current < STALL_MS) return; // just switched — give it time
+
+      playingRef.current = false;
+      recordStartupResult(stalledId, null); // stalls hurt the server's ranking too
+
+      if (live.mode === "auto") {
+        advanceAuto(`${getServer(stalledId).label} stopped mid-episode`);
+        return;
+      }
+      // Manual pin stalled → hand over to auto-pilot for the next best.
+      holdPosition();
+      attemptedRef.current.add(stalledId);
+      gotSignalRef.current = false;
+      lastSwitchRef.current = Date.now();
+      setMode("auto");
+      savePreferredServer("auto");
+      const nextBest = healthRef.current.find(
+        (h) => h.ok && !attemptedRef.current.has(h.id)
+      );
+      if (nextBest) {
+        setAutoPick(nextBest.id);
+        push(
+          `${getServer(stalledId).label} stopped mid-episode — switched to ${getServer(nextBest.id).label}`,
+          "error"
+        );
+      } else {
+        setAutoPick(null);
+        push(
+          `${getServer(stalledId).label} stopped mid-episode — auto-pilot is scanning…`,
+          "error"
+        );
+      }
+    }, CHECK_MS);
+    return () => window.clearInterval(iv);
+  }, [advanceAuto, holdPosition, push]);
 
   const saveWatchProgressIfNew = useCallback(() => {
     if (!show) return;
@@ -515,6 +585,10 @@ export default function WatchAnime() {
   useEffect(() => {
     if (!embedUrl) return;
     mountedAtRef.current = Date.now();
+    // fresh embed → stall detection starts from a clean slate
+    playingRef.current = false;
+    endedRef.current = false;
+    lastProgressAtRef.current = 0;
   }, [embedUrl]);
   const serverLabel =
     mode === "auto"
