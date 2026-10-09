@@ -160,7 +160,7 @@ const Watch = () => {
       </nav>
 
       <main className="mx-auto mt-4 grid max-w-[1400px] gap-5 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <div className="relative overflow-hidden rounded-[28px] bg-black ring-1 ring-white/12">
             <OtakuPlayer
               key={`${data.id}-${startOffset}`}

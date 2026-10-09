@@ -118,7 +118,7 @@ export default function MyListPage() {
       </section>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <div className="no-scrollbar min-w-0 max-w-full overflow-x-auto">
+        <div className="no-scrollbar min-w-0 max-w-full overflow-x-auto [mask-image:linear-gradient(to_right,black_88%,transparent)]">
           <Segmented
             className="w-max"
             segments={TABS}

@@ -56,12 +56,22 @@ body,
   min-height: 100dvh;
 }
 
+html {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 body {
   min-width: 320px;
 }
 
 body {
+  /* `clip` blocks horizontal bleed without turning the element into a
+     scroll container — `hidden` would compute overflow-y to `auto`,
+     which breaks position: sticky chrome (the watch-page top bar) on
+     phones. Browsers without `clip` fall back to the line above. */
   overflow-x: hidden;
+  overflow-x: clip;
   color: #fff;
   background-color: #333a5c;
   font-family: var(--font-sans);

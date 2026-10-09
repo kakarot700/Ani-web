@@ -165,7 +165,7 @@ const Navbar = () => {
               </button>
 
               {showNotifs && (
-                <div className="card-light rise absolute right-0 top-12 w-[330px] overflow-hidden rounded-[22px]">
+                <div className="card-light rise absolute right-0 top-12 w-[330px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[22px]">
                   <div className="px-5 pb-3 pt-4">
                     <p className="text-[15px] font-semibold tracking-[-0.02em] text-[var(--ink)]">
                       Recently updated

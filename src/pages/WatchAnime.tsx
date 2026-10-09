@@ -598,7 +598,7 @@ export default function WatchAnime() {
 
         {/* body */}
         <div className={`mt-6 grid gap-5 ${theater ? "" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5">
             <Card
               title="Servers"
               meta="Auto-pilot plays on the fastest healthy server — falls back on its own"
