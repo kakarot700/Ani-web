@@ -111,7 +111,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3 md:px-5 md:pt-4">
+      <nav className="app-top-safe-area pointer-events-none fixed inset-x-0 top-0 z-40 px-3 md:px-5">
         <div
           className="pointer-events-auto mx-auto flex max-w-[1400px] items-center gap-3 rounded-full px-2.5 py-2 transition-all duration-500"
           style={{
@@ -227,7 +227,7 @@ const Navbar = () => {
       </nav>
 
       {/* mobile: one floating black pill at the bottom, like Hark's app */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 md:hidden">
+      <nav className="mobile-dock-safe-area fixed inset-x-0 bottom-0 z-40 flex justify-center md:hidden">
         <div className="press flex items-center gap-0.5 rounded-full bg-[#16181f]/92 p-1.5 shadow-[0_18px_40px_-16px_rgba(10,12,24,0.9)] backdrop-blur-xl">
           {BOTTOM_NAV.map((l) => {
             const active =

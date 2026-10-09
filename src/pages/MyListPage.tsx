@@ -121,7 +121,14 @@ export default function MyListPage() {
       </section>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <Segmented segments={TABS} value={tab} onChange={setTab} />
+        <div className="no-scrollbar min-w-0 max-w-full overflow-x-auto">
+          <Segmented
+            className="w-max"
+            segments={TABS}
+            value={tab}
+            onChange={setTab}
+          />
+        </div>
         <span className="text-[12.5px] text-white/50">
           {counts[tab] ?? 0} title{(counts[tab] ?? 0) === 1 ? "" : "s"}
         </span>

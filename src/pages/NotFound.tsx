@@ -11,7 +11,7 @@ const NotFound: React.FC = () => {
   return (
     <>
       <Navbar />
-      <main className="mx-auto flex min-h-[78vh] max-w-[720px] flex-col items-center justify-center px-4 pt-28 text-center">
+      <main className="page-content-compact mx-auto flex min-h-[78svh] max-w-[720px] flex-col items-center justify-center px-4 text-center">
         <div className="mb-5">
           <LabelPill>Error 404</LabelPill>
         </div>
